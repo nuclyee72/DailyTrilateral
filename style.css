@@ -2796,5 +2796,5 @@ kbd {
 }
 .pyra-dist-label { width: 44px; flex: 0 0 auto; color: rgba(var(--text-given-rgb), 0.7); }
 .pyra-dist-track { flex: 1 1 auto; height: 10px; background: var(--surface-1); border-radius: 5px; overflow: hidden; }
-.pyra-dist-fill { height: 100%; background: var(--text-input); border-radius: 5px; }
+.pyra-dist-fill { display: block; height: 100%; background: var(--text-input); border-radius: 5px; }
 .pyra-dist-count { width: 22px; flex: 0 0 auto; text-align: right; color: rgba(var(--text-given-rgb), 0.7); }
