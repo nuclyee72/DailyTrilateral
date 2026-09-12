@@ -1,0 +1,2800 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --grid-line:        #d7dbe3;
+  --box-line:          #232733;
+  --cell-bg:           #ffffff;
+  --cell-given-bg:      #f4f5f8;
+  --cell-selected:      #d3ecdc;
+  --cell-highlighted:   #edf8f0;
+  --conflict:          #e53e3e;
+  --text-given:        #232733;
+  --text-given-rgb:    35, 39, 51; /* text-given과 같은 색을 rgba()로 다양한 투명도로 쓰기 위한 짝 */
+  --text-input:        #2f9e60;
+  --text-sel:          #1e6b41;
+  --text-note:         rgba(var(--text-given-rgb), 0.5);
+  --ineq-mark:         #5c6370;
+  --snake-default:     #e0a72c;
+  --snake-success:     #2f9e60;
+  --turntable-mark:    #2f9e60;
+  --turntable-mark-pale: #b6ddc7; /* 십자 기본 상태 - 불투명해서 칸이 하이라이트돼도 색이 안 변함 */
+  --draw-ink:          #8bc34a; /* 그리기(펜) 기본 획 색 — 연두색 (협동 모드에선 참가자 색으로 대체됨) */
+
+  /* ── 보드 바깥 UI 셸(패널/버튼/배경) 색상 — 다크 모드에서 아래 [data-theme="dark"]가 통째로 덮어씀 ── */
+  --bg-page:            #ffffff;
+  --landing-gradient:   linear-gradient(160deg, #eef4f0, #ffffff 60%);
+  --glass-rgb:          255, 255, 255; /* 반투명 "유리" 패널(kp-toggle, 떠있는 패널 등) 배경/테두리용 */
+  --surface-solid:      #ffffff; /* 완전 불투명 밝은 면(입력창, 드롭다운 메뉴, 키패드 버튼 등) */
+  --surface-solid-hover: #f5f6f8;
+  --surface-1:          #f0f1f4; /* 가장 흔한 연회색 면(버튼/트랙/타이머 등) */
+  --surface-1-hover:    #e6e7ec;
+  --surface-2:          #f7f8fa; /* 목록 행(참가자/리더보드/퍼즐 목록) 배경 */
+  --surface-2-hover:    #eef0f3;
+  --surface-danger:     #fff1f1; /* 지우기류 버튼의 옅은 빨강 면 */
+  --conflict-hover:     #cc3535;
+  --cell-selected-hover: #c3e6d1;
+}
+
+[data-theme="dark"] {
+  --grid-line:        #3a3f4c;
+  --box-line:          #e4e6ea;
+  --cell-bg:           #1c1f27;
+  --cell-given-bg:      #262a35;
+  --cell-selected:      #234534;
+  --cell-highlighted:   #1c3327;
+  --conflict:          #f0655f;
+  --text-given:        #e4e6ea;
+  --text-given-rgb:    228, 230, 234;
+  --text-input:        #4cc47f;
+  --text-sel:          #86e6b3;
+  --text-note:         rgba(var(--text-given-rgb), 0.5);
+  --ineq-mark:         #9aa1ad;
+  --snake-default:     #e0a72c;
+  --snake-success:     #4cc47f;
+  --turntable-mark:    #4cc47f;
+  --turntable-mark-pale: #2d5240;
+  --draw-ink:          #aed581;
+
+  --bg-page:            #14161c;
+  --landing-gradient:   linear-gradient(160deg, #182420, #14161c 60%);
+  --glass-rgb:          24, 27, 34;
+  --surface-solid:      #1c1f27;
+  --surface-solid-hover: #262a35;
+  --surface-1:          #262a35;
+  --surface-1-hover:    #303543;
+  --surface-2:          #20232c;
+  --surface-2-hover:    #2a2e3a;
+  --surface-danger:     #3a2226;
+  --conflict-hover:     #ff8177;
+  --cell-selected-hover: #2c5a41;
+}
+
+/* ── 스크롤바는 모든 곳에서 숨긴다 (스크롤 동작 자체는 그대로) ── */
+* {
+  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  /* 구형 Edge/IE */
+}
+*::-webkit-scrollbar {       /* Chrome / Safari / 신형 Edge */
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg-page);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* ── 랜딩 화면 (싱글/멀티플레이 진입) ── */
+.landing-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--landing-gradient);
+}
+
+.landing-screen.hidden {
+  display: none;
+}
+
+.landing-card {
+  width: min(340px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  touch-action: pan-y; /* 짧은 세로 공간(가로 폰 등)에서 내용이 넘치면 내부 스크롤로 */
+  padding: 48px 36px 40px;
+  border-radius: 28px;
+  background: rgba(var(--glass-rgb), 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 24px 60px rgba(20, 24, 40, 0.18);
+  text-align: center;
+}
+
+.landing-title {
+  margin: 0 0 32px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+.landing-title-icon { font-size: 0.9em; margin-right: 2px; }
+
+.landing-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.landing-stack[hidden] {
+  display: none;
+}
+
+.landing-btn {
+  height: 56px;
+  border: none;
+  border-radius: 16px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.08);
+  transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing-btn:hover {
+  background: var(--surface-1-hover);
+  box-shadow: 0 4px 10px rgba(20, 24, 40, 0.14);
+}
+
+.landing-btn:active {
+  transform: scale(0.97);
+}
+
+.landing-btn-primary {
+  background: var(--text-input);
+  color: #ffffff;
+}
+
+.landing-btn-primary:hover {
+  background: var(--text-sel);
+}
+
+.landing-row { display: flex; gap: 10px; }
+.landing-row .landing-btn { flex: 1; min-width: 0; font-size: 16px; }
+
+/* ── 지난 퍼즐 아카이브 (메인 카드 안의 서브뷰) ── */
+.landing-card--archive { width: min(392px, calc(100vw - 20px)); padding-left: 22px; padding-right: 22px; }
+
+.archive-back {
+  align-self: flex-start;
+  border: none;
+  padding: 8px 16px 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.08);
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.archive-back:hover { background: var(--surface-1-hover); }
+.archive-back:active { transform: scale(0.96); }
+
+.archive-note {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(var(--text-given-rgb), 0.55);
+  text-align: center;
+}
+.archive-type-toggle { display: flex; gap: 6px; }
+.archive-type {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.6);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.archive-type.active { background: var(--text-input); color: #fff; }
+.archive-error {
+  margin: 0;
+  min-height: 14px;
+  font-size: 12px;
+  color: var(--conflict);
+  text-align: center;
+}
+#landing-archive { gap: 11px; }
+#landing-archive .landing-btn { height: 46px; font-size: 15px; margin-top: 4px; }
+#landing-archive .landing-btn:disabled { opacity: 0.4; cursor: default; }
+#landing-archive .daily-stats-cal { margin-bottom: 0; }
+#landing-archive .daily-cal-nav { margin-bottom: 4px; }
+#landing-archive .archive-error:empty { min-height: 0; }
+
+.landing-back {
+  margin-top: 6px;
+  border: none;
+  background: none;
+  color: rgba(var(--text-given-rgb), 0.55);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.landing-back:hover {
+  color: var(--text-given);
+}
+
+.landing-placeholder-text {
+  margin: 12px 0 24px;
+  color: rgba(var(--text-given-rgb), 0.7);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── 방 생성/참가 폼 공용 ── */
+.landing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.landing-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--text-given-rgb), 0.7);
+}
+
+.landing-input,
+.landing-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(var(--text-given-rgb), 0.12);
+  border-radius: 12px;
+  background: var(--surface-solid);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 16px; /* 16px 미만이면 iOS Safari가 포커스 시 페이지를 자동 확대함 */
+  font-weight: 600;
+}
+
+.landing-input:focus,
+.landing-select:focus {
+  outline: none;
+  border-color: var(--text-input);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-toggle-btn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mode-toggle-btn.active {
+  background: var(--text-input);
+  color: #ffffff;
+}
+
+.mode-toggle-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* 모양/요소처럼 버튼 수가 많아 한 줄에 다 못 들어가는 토글 그룹 */
+.mode-toggle.wrap {
+  flex-wrap: wrap;
+}
+
+.mode-toggle.wrap .mode-toggle-btn {
+  flex: 0 1 auto;
+  height: 36px;
+  padding: 0 12px;
+}
+
+/* 좁은 화면/터치(coarse pointer)에서는 최소 터치 타깃(44px)에 가깝게 키운다 */
+@media (max-width: 640px), (pointer: coarse) {
+  .mode-toggle-btn {
+    height: 44px;
+  }
+
+  .mode-toggle.wrap .mode-toggle-btn {
+    height: 40px;
+  }
+}
+
+/* ── 요소별 없음/보통/많음 슬라이더 (자동 생성 패널) ──
+   실제 드래그 슬라이더는 아니고, 3칸짜리 트랙 위에서 선택된 칸으로 thumb가 미끄러지듯
+   옮겨가는 세그먼트 컨트롤 — 클릭만으로 조작하지만 시각적으로 슬라이드하는 느낌을 준다. */
+.element-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.element-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.element-slider-label {
+  flex: 0 0 auto;
+  min-width: 58px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-given);
+}
+
+.element-slider-track {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  max-width: 160px;
+  height: 30px;
+  background: var(--surface-1);
+  border-radius: 9px;
+  padding: 2px;
+}
+
+/* 난이도 슬라이더처럼 옆에 라벨 없이 한 줄 전체를 쓰는 트랙 */
+.element-slider-track.wide {
+  max-width: none;
+  width: 100%;
+}
+
+.element-slider-track.disabled {
+  opacity: 0.6;
+}
+
+.element-slider-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  /* width는 옵션 개수에 맞춰 JS가 인라인으로 지정한다(요소 슬라이더=3칸, 난이도=5칸) */
+  height: 26px;
+  border-radius: 7px;
+  background: var(--text-input);
+  transition: transform 0.18s ease;
+}
+
+.element-slider-opt {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  word-break: keep-all; /* "조금 어려움"처럼 공백 있는 라벨이 글자 중간이 아니라 공백에서만 줄바꿈되게 */
+  color: rgba(var(--text-given-rgb), 0.55);
+  cursor: pointer;
+  border-radius: 7px;
+  transition: color 0.15s ease;
+}
+
+.element-slider-opt.active {
+  color: #ffffff;
+}
+
+.element-slider-opt:disabled {
+  cursor: default;
+}
+
+.element-random-btn {
+  margin-top: 2px;
+}
+
+/* ── 모양 선택 드롭다운(클릭 시 펼쳐지며 보드 배치를 미니어처로 보여줌) ── */
+.shape-picker {
+  position: relative;
+  width: 100%;
+}
+
+.shape-picker-trigger {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.shape-picker-trigger:hover {
+  background: var(--surface-1-hover);
+}
+
+.shape-picker-trigger:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.shape-picker-trigger-label {
+  flex: 1;
+  text-align: left;
+}
+
+.shape-picker-arrow {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: rgba(var(--text-given-rgb), 0.5);
+  transition: transform 0.15s ease;
+}
+
+.shape-picker.open .shape-picker-arrow {
+  transform: rotate(180deg);
+}
+
+.shape-picker-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  touch-action: pan-y; /* 전역 touch-action:none 아래서도 모양 목록 스크롤은 허용 */
+  padding: 10px;
+  background: var(--surface-solid);
+  border-radius: 12px;
+  border: 1px solid rgba(var(--text-given-rgb), 0.1);
+  box-shadow: 0 12px 28px rgba(20, 24, 40, 0.18);
+}
+
+.shape-picker.open .shape-picker-menu {
+  display: grid;
+}
+
+.shape-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.shape-option:hover {
+  background: var(--surface-1);
+}
+
+.shape-option.active {
+  background: var(--text-input);
+  color: #ffffff;
+}
+
+.shape-thumb-svg {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  color: var(--text-input);
+}
+
+.shape-picker-trigger .shape-thumb-svg {
+  width: 24px;
+  height: 24px;
+}
+
+.shape-option.active .shape-thumb-svg {
+  color: #ffffff;
+}
+
+.shape-thumb-svg rect {
+  fill: currentColor;
+  fill-opacity: 0.35;
+  stroke: currentColor;
+  stroke-width: 0.6;
+}
+
+.shape-thumb-random {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.shape-option .shape-thumb-random {
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
+}
+
+.generate-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.landing-error {
+  margin: 0;
+  min-height: 0;
+  color: var(--conflict);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  display: none;
+}
+
+.landing-error.show {
+  display: block;
+}
+
+/* ── 대기실 ── */
+.waiting-room-screen .waiting-room-card {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.wr-code-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.wr-code-label {
+  font-size: 13px;
+  color: rgba(var(--text-given-rgb), 0.6);
+}
+
+.wr-code {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--text-input);
+}
+
+.wr-copy-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.wr-copy-btn:hover {
+  background: var(--surface-1-hover);
+}
+
+.wr-copy-btn:active {
+  transform: scale(0.95);
+}
+
+.wr-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  text-align: left;
+}
+
+.wr-body[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .wr-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.wr-col {
+  min-width: 0;
+}
+
+.wr-col-title {
+  margin: 0 0 12px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.wr-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wr-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-given);
+}
+
+.wr-player-nickname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wr-host-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--cell-selected);
+  color: var(--text-sel);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wr-nickname-edit-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--text-given-rgb), 0.5);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wr-nickname-edit-btn:hover {
+  background: var(--surface-2-hover);
+  color: var(--text-given);
+}
+
+/* 좁은 화면/터치에서 방 코드 복사·닉네임 수정 버튼도 살짝 키운다 */
+@media (max-width: 640px), (pointer: coarse) {
+  .wr-copy-btn {
+    height: 32px;
+  }
+
+  .wr-nickname-edit-btn {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.wr-nickname-input {
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--text-input);
+  border-radius: 8px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 16px; /* 16px 미만이면 iOS Safari가 포커스 시 페이지를 자동 확대함 */
+  font-weight: 600;
+}
+
+.wr-readonly-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(var(--text-given-rgb), 0.5);
+}
+
+.wr-starting {
+  margin: 8px 0;
+}
+
+.wr-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.wr-actions .landing-btn {
+  width: 100%;
+}
+
+.wr-waiting-note {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(var(--text-given-rgb), 0.6);
+}
+
+/* ── 게임 화면 (보드 + 키패드 + 각종 패널을 감싸는 컨테이너) ── */
+.game-screen.hidden {
+  display: none;
+}
+
+/* ── 그리기 모드일 때 화면 전체(게임판 밖 포함)에서 입력을 받는 투명 오버레이 ──
+   board-panel(1)보다는 위, 키패드/리더보드/떠있는 패널(5 이상)보다는 아래에 둬서
+   평소엔 완전히 투명하게 통과시키다가 그리기 모드일 때만 화면 전체를 캔버스로 쓴다. */
+.draw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.draw-overlay.draw-mode {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* ── 스도쿠 판 (패널 없이 판만 떠 있음) ── */
+.board-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  cursor: grab;
+}
+
+.board-wrapper {
+  display: inline-block;
+  line-height: 0;
+  transition: filter 0.25s ease;
+}
+
+.board-wrapper.blurred {
+  filter: blur(10px);
+}
+
+/* ── 타이머 시작 전 게임 판 오버레이 ── */
+.board-start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.board-start-overlay.show {
+  display: flex;
+  pointer-events: auto;
+}
+
+.btn-start-timer {
+  padding: 18px 52px;
+  border: none;
+  border-radius: 999px;
+  background: var(--text-input);
+  color: #ffffff;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 16px 40px rgba(20, 24, 40, 0.28);
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.btn-start-timer:hover {
+  background: var(--text-sel);
+}
+
+.btn-start-timer:active {
+  transform: scale(0.96);
+}
+
+/* ── 배틀 모드 시작 카운트다운 ── */
+.battle-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.battle-countdown-overlay.hidden {
+  display: none;
+}
+
+.battle-countdown-number {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: clamp(72px, 24vw, 140px);
+  font-weight: 700;
+  color: var(--text-input);
+  text-shadow: 0 16px 40px rgba(20, 24, 40, 0.28);
+}
+
+/* ── 배틀 모드 리더보드 ── */
+.battle-leaderboard {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
+  width: 220px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(var(--glass-rgb), 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 12px 40px rgba(20, 24, 40, 0.14);
+}
+
+.battle-leaderboard.hidden {
+  display: none;
+}
+
+@media (max-width: 640px) and (orientation: portrait) {
+  .battle-leaderboard {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: 160px;
+    padding: 12px;
+    max-height: 50vh;
+    max-height: 50dvh;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .battle-leaderboard {
+    /* 이 모드에서는 키패드가 오른쪽 가장자리 전체 높이(196px)를 차지하므로,
+       리더보드를 반대편(왼쪽)으로 옮겨야 겹치지 않는다 */
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: auto;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    width: 140px;
+    padding: 8px 10px;
+    max-height: 80vh;
+    max-height: 80dvh;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  .battle-leaderboard .battle-leaderboard-row {
+    height: 30px;
+    font-size: 12px;
+  }
+}
+
+.leaderboard-room-code {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(var(--text-given-rgb), 0.1);
+  font-size: 12px;
+  color: rgba(var(--text-given-rgb), 0.6);
+}
+
+.leaderboard-room-code strong {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-input);
+}
+
+.battle-leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.battle-leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-given);
+}
+
+.battle-leaderboard-row.battle-finished {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+}
+
+.battle-leaderboard-row.battle-forfeited {
+  opacity: 0.55;
+}
+
+.battle-rank {
+  flex: 0 0 auto;
+  width: 18px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 700;
+  text-align: center;
+}
+
+.battle-nickname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-color-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.battle-timer,
+.coop-fill-count {
+  flex: 0 0 auto;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+/* ── 참가자별 그리기(펜) 획 보이기/숨기기 — 순전히 내 화면에서만 걸러내는 로컬 토글 ── */
+.coop-draw-toggle-btn {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.coop-draw-toggle-btn:hover {
+  background: rgba(var(--text-given-rgb), 0.12);
+  opacity: 0.9;
+}
+
+.coop-draw-toggle-btn.drawings-hidden {
+  opacity: 0.85;
+}
+
+.battle-ended-card {
+  width: min(340px, calc(100vw - 32px));
+}
+
+.battle-ended-card .battle-leaderboard-list {
+  margin: 4px 0 20px;
+}
+
+.coop-ended-time {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-input);
+  text-align: center;
+  margin: 4px 0 12px;
+}
+
+#sudoku-svg {
+  display: block;
+  overflow: visible; /* 턴테이블 회전 손잡이가 보드 가장자리에서 잘리지 않도록 */
+  transform-origin: 0 0;
+  filter: drop-shadow(0 24px 48px rgba(20, 24, 40, 0.18));
+}
+
+.cell-win {
+  animation: cellWin 1s ease;
+}
+
+@keyframes cellWin {
+  0%   { fill: var(--cell-bg); }
+  40%  { fill: #ffe58a; }
+  100% { fill: var(--cell-bg); }
+}
+
+/* ── 메모(후보 숫자) ── */
+.cell-notes text {
+  transition: fill 0.15s ease;
+}
+
+@keyframes noteReject {
+  0%      { fill: var(--text-note); }
+  30%, 70% { fill: var(--conflict); }
+  100%    { fill: var(--text-note); }
+}
+
+.cell-notes.flash-reject text {
+  animation: noteReject 0.5s ease;
+}
+
+/* ── 숫자 입력 키패드 패널 ──
+   #keypad-panel 은 [드로어(토글+추가메뉴)][본 키패드]로 이루어진 flex
+   래퍼로, 본 키패드(kp-panel-body)는 항상 같은 화면 위치에 그대로
+   보인다. kp-drawer는 flex 흐름 밖(position:absolute)에서 본 키패드의
+   왼쪽 가장자리(right:100%)에 붙어, 내부(flex-shrink-to-fit)에 맞춰
+   토글+추가메뉴 전체 폭이 늘어난다 — 토글이 항상 드로어의 가장 왼쪽에
+   있으므로 추가 메뉴가 열리면 토글도 함께 왼쪽으로 밀려난다.
+   이렇게 해야 패널 자체의 flex 박스 크기가 안 바뀌어 본 키패드가
+   화면 밖으로 밀려나거나, 접혔을 때 안 보이는 큰 히트박스가 남는
+   문제를 피한다. */
+.keypad-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+}
+
+.kp-drawer {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+.kp-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  border: none;
+  border-radius: 14px 0 0 14px;
+  background: rgba(var(--glass-rgb), 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  border-right: none;
+  box-shadow: -6px 0 24px rgba(20, 24, 40, 0.1);
+  color: var(--text-given);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.kp-toggle:hover {
+  background: rgba(var(--glass-rgb), 0.85);
+}
+
+.kp-extra-menu {
+  flex: 0 0 auto;
+  width: 0;
+  overflow: hidden;
+  background: rgba(var(--glass-rgb), 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(var(--glass-rgb), 0.6);
+  border-bottom: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 12px 40px rgba(20, 24, 40, 0.14);
+  opacity: 0;
+  transition: width 0.25s ease, opacity 0.2s ease;
+}
+
+.keypad-panel.menu-open .kp-extra-menu {
+  width: 180px;
+  opacity: 1;
+}
+
+.kp-extra-content {
+  width: 180px; /* 펼침 애니메이션 중 내부가 찌그러지지 않도록 고정 */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.kp-extra-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y; /* 전역 touch-action:none 아래서도 이 목록만은 세로 터치 스크롤을 허용 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 8px;
+}
+
+/* 스크롤 목록 밖에 항상 고정으로 보이는 버튼들(퍼즐 선택/자동 생성/중지 투표) — 순서상
+   바로 앞 항목과의 간격만 있으면 되므로 위쪽 margin만 준다. flex 자식끼리는 margin이
+   서로 겹쳐 줄어들지 않으므로(margin collapse 없음) 몇 개가 이어져도 간격이 일정하다. */
+.kp-extra-pinned {
+  flex: 0 0 auto;
+  margin: 8px 16px 0;
+}
+
+.kp-extra-home {
+  flex: 0 0 auto;
+  margin: 8px 16px 16px;
+}
+
+.kp-extra-btn {
+  height: 40px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface-solid);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.08);
+  transition: background 0.15s ease, transform 0.08s ease;
+  white-space: nowrap;
+}
+
+.kp-extra-btn:hover {
+  background: var(--surface-solid-hover);
+}
+
+.kp-extra-btn:active {
+  transform: scale(0.97);
+}
+
+.kp-extra-btn.active {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+}
+
+.kp-extra-btn.hidden {
+  display: none;
+}
+
+.kp-extra-danger {
+  background: var(--surface-danger);
+  color: var(--conflict);
+}
+
+.kp-extra-danger:hover {
+  background: var(--surface-danger);
+  filter: brightness(0.97);
+}
+
+.kp-panel-body {
+  width: 232px;
+  padding: 20px;
+  border-radius: 0 24px 24px 0;
+  background: rgba(var(--glass-rgb), 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 12px 40px rgba(20, 24, 40, 0.14);
+  cursor: grab;
+}
+
+.kp-body {
+  width: 192px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.kp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.timer-display {
+  display: none;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.timer-display.show {
+  display: flex;
+}
+
+/* ── 답지 패널: 정답 체크 / 정답 보기 (도움말/저장 패널과 같은 floating-panel) ── */
+.answer-sheet-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.answer-sheet-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 48px;
+  border-radius: 12px;
+  border: none;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: normal;
+  word-break: keep-all;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.answer-sheet-btn:hover {
+  background: var(--surface-1-hover);
+}
+
+.answer-sheet-btn.pressed {
+  transform: scale(0.96);
+}
+
+.answer-sheet-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.kp-sep {
+  height: 1px;
+  background: rgba(var(--text-given-rgb), 0.12);
+}
+
+.kp-btn {
+  height: 56px;
+  border: none;
+  border-radius: 14px;
+  background: var(--surface-solid);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.08);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.kp-btn:hover {
+  box-shadow: 0 4px 10px rgba(20, 24, 40, 0.14);
+}
+
+.kp-btn.pressed {
+  transform: scale(0.9);
+}
+
+.kp-num.active {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+  font-weight: 700;
+}
+
+.kp-row-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.kp-row-actions .kp-btn {
+  flex: 1;
+  height: 44px;
+  font-size: 14px;
+}
+
+.kp-note {
+  font-weight: 600;
+}
+
+.kp-note.active {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+}
+
+.kp-erase {
+  background: var(--surface-danger);
+  color: var(--conflict);
+  font-weight: 600;
+}
+
+.kp-undo {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.kp-reset-all {
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--conflict);
+  background: transparent;
+  color: var(--conflict);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.kp-reset-all:hover {
+  background: var(--surface-danger);
+}
+
+.kp-reset-all.pressed {
+  transform: scale(0.96);
+}
+
+.kp-reset-all.hidden {
+  display: none;
+}
+
+/* ── "내 메모 지우기" / "내 숫자 지우기" — 한 줄에 나란히 두다 보니 풀 문구가 안 들어가서
+   짧은 표현 + 2줄 줄바꿈 허용으로 좁은 폭에도 읽히게 한다. 짝이 hidden이면(싱글플레이)
+   flex:1이 자동으로 남은 폭을 채운다. ── */
+.kp-reset-row {
+  display: flex;
+  gap: 8px;
+}
+
+.kp-reset-half {
+  flex: 1 1 0;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  padding: 6px 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+/* ── "모두 지우기"를 모바일에서는 "내 메모 지우기"와 한 행에 반반으로 ──
+   데스크톱은 지금처럼 혼자 한 줄 전체를 차지해야 하므로, 이 행에만 wrap을 켜고
+   이 버튼에만 flex-basis:100%를 줘서 항상 새 줄로 강제 줄바꿈시킨다(기존 모양 그대로 유지).
+   모바일에서만 flex-basis를 0으로 되돌려 kp-reset-half와 나란히 반반 공유하게 한다. */
+.kp-reset-row-clear {
+  flex-wrap: wrap;
+  gap: 14px 8px; /* 세로(줄바꿈 시)=기존 kp-body 간격, 가로=기존 kp-reset-row 간격과 동일 */
+}
+
+.kp-reset-all-join {
+  flex: 1 1 100%;
+}
+
+[data-layout^="mobile"] .kp-reset-all-join {
+  flex: 1 1 0;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  padding: 6px 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+[data-layout="mobile-portrait"] .kp-reset-all-join {
+  min-height: 38px;
+}
+
+[data-layout="mobile-landscape"] .kp-reset-all-join {
+  min-height: 34px;
+}
+
+/* ── 그리기(펜) 토글 — "지우기"류 빨간 테두리 대신 메모 버튼처럼 평소엔 무채색, 켜지면 초록 ── */
+.kp-draw-toggle {
+  border: 1.5px solid rgba(var(--text-given-rgb), 0.18);
+  background: var(--surface-solid);
+  color: var(--text-given);
+}
+
+.kp-draw-toggle:hover {
+  background: var(--surface-solid-hover);
+}
+
+.kp-draw-toggle.active {
+  border-color: var(--cell-selected);
+  background: var(--cell-selected);
+  color: var(--text-sel);
+}
+
+#sudoku-svg.draw-mode {
+  cursor: crosshair;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   모바일 세로 레이아웃 — src/ui/layoutMode.js가 붙이는
+   [data-layout="mobile-portrait"]를 기준으로 분기한다(JS가 매기는
+   모드와 항상 일치시키기 위해, 별도의 @media 폭 기준을 CSS에
+   중복해서 두지 않는다). breakpoint 자체는 layoutMode.js의
+   PORTRAIT_MQ: (max-width: 640px) and (orientation: portrait).
+   ══════════════════════════════════════════════════════════════ */
+
+/* 키패드: 화면 하단에 통째로 도킹되는 바 (main.js가 인라인 left/top을 비워두므로
+   여기서 위치를 전담한다) */
+[data-layout="mobile-portrait"] .keypad-panel {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+}
+
+[data-layout="mobile-portrait"] .kp-panel-body {
+  width: 100%;
+  border-radius: 20px 20px 0 0;
+  max-height: 42vh;
+  max-height: 42dvh; /* dvh 미지원 브라우저는 위 vh 값을 그대로 씀 */
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 14px 16px max(14px, env(safe-area-inset-bottom, 0px));
+  cursor: default; /* 모바일에서는 드래그 불가(desktopOnly) - grab 커서는 의미가 없음 */
+}
+
+[data-layout="mobile-portrait"] .kp-body {
+  width: 100%;
+  gap: 10px;
+}
+
+/* 숫자 버튼 9개 + 메모/지우기/실행취소 행(kp-row-actions, grid-column:1/-1)이 같은 grid의
+   자식이라, 9열로 바꾸면 DOM 순서 그대로 "숫자 한 줄 + 그 아래 액션 행"이 자연스럽게 된다. */
+[data-layout="mobile-portrait"] .kp-grid {
+  grid-template-columns: repeat(9, 1fr);
+  gap: 6px;
+}
+
+[data-layout="mobile-portrait"] .kp-btn {
+  height: 46px;
+  font-size: 16px;
+}
+
+[data-layout="mobile-portrait"] .kp-row-actions {
+  gap: 6px;
+}
+
+[data-layout="mobile-portrait"] .kp-row-actions .kp-btn {
+  height: 40px;
+  font-size: 13px;
+}
+
+[data-layout="mobile-portrait"] .kp-reset-all {
+  height: 38px;
+}
+
+[data-layout="mobile-portrait"] .kp-reset-half {
+  min-height: 38px;
+}
+
+/* 드로어: 토글은 바로 위에 작게 떠 있는 버튼으로, 추가 메뉴는 왼쪽 슬라이드 대신
+   화면 하단에서 올라오는 시트로 (플로팅 패널과 동일한 슬라이드 방식, Phase 4 참고) */
+[data-layout="mobile-portrait"] .kp-drawer {
+  position: absolute;
+  left: auto;
+  right: 12px;
+  top: -46px;
+  height: auto;
+}
+
+[data-layout="mobile-portrait"] .kp-toggle {
+  width: 44px;
+  height: 34px;
+  border-radius: 10px;
+  /* 시트(.kp-extra-menu, z-index:60)가 열리면 최대 70vh까지 올라와 토글이 원래 떠 있던
+     자리(바 위 -46px)까지 뒤덮을 수 있다 - static 요소는 z-index가 안 먹으므로 relative로
+     띄워서 시트보다 위에 그려지게 해야, 열려 있을 때도 다시 눌러서 닫을 수 있다. */
+  position: relative;
+  z-index: 61;
+}
+
+[data-layout="mobile-portrait"] .kp-extra-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  max-height: 70dvh;
+  border-radius: 20px 20px 0 0;
+  opacity: 1; /* 보이기/숨기기는 opacity가 아니라 transform(translateY)만으로 처리 */
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  z-index: 60;
+}
+
+[data-layout="mobile-portrait"] .keypad-panel.menu-open .kp-extra-menu {
+  /* 데스크톱 전용 .keypad-panel.menu-open .kp-extra-menu{width:180px}보다 특이도를
+     높여서(속성+클래스 3개) width를 다시 100%로 덮어써야 한다 */
+  width: 100%;
+  transform: translateY(0);
+}
+
+[data-layout="mobile-portrait"] .kp-extra-content {
+  width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   모바일 가로 레이아웃 — [data-layout="mobile-landscape"]
+   breakpoint는 layoutMode.js의 LANDSCAPE_MQ와 맞춘다:
+   (max-height: 500px) and (orientation: landscape)
+   세로 모드와 달리 폭은 넉넉하고 높이가 빠듯한 게 진짜 제약이라, 데스크톱처럼 키패드를
+   오른쪽에 두되 전체 높이로 도킹한다. 추가 메뉴도 왼쪽 플라이아웃을 그대로 쓴다(공간이
+   있어 세로 모드처럼 시트로 바꿀 필요가 없음 - 별도 규칙 없이 데스크톱 CSS를 상속).
+   ══════════════════════════════════════════════════════════════ */
+
+[data-layout="mobile-landscape"] .keypad-panel {
+  left: auto;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+[data-layout="mobile-landscape"] .kp-panel-body {
+  width: 196px;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  touch-action: pan-y;
+  border-radius: 20px 0 0 20px;
+  padding: 14px 16px;
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  cursor: default; /* 모바일에서는 드래그 불가(desktopOnly) - grab 커서는 의미가 없음 */
+}
+
+[data-layout="mobile-landscape"] .kp-body {
+  width: 100%;
+  gap: 8px;
+}
+
+[data-layout="mobile-landscape"] .kp-grid {
+  gap: 6px;
+}
+
+[data-layout="mobile-landscape"] .kp-btn {
+  height: 40px;
+  font-size: 17px;
+}
+
+[data-layout="mobile-landscape"] .kp-row-actions .kp-btn {
+  height: 36px;
+  font-size: 13px;
+}
+
+[data-layout="mobile-landscape"] .kp-reset-all {
+  height: 34px;
+}
+
+[data-layout="mobile-landscape"] .kp-reset-half {
+  min-height: 34px;
+}
+
+/* ── 완성 토스트 ── */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translate(-50%, 16px);
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: rgba(35, 39, 51, 0.92);
+  color: #ffffff;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(20, 24, 40, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 999;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ── 모두 지우기 확인 모달 ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 40, 0.32);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 28px 24px 20px;
+  border-radius: 20px;
+  background: rgba(var(--glass-rgb), 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 24px 60px rgba(20, 24, 40, 0.28);
+  cursor: default;
+  transform: scale(0.94) translateY(6px);
+  transition: transform 0.18s ease;
+}
+
+.modal-overlay.show .modal-card {
+  transform: scale(1) translateY(0);
+}
+
+.modal-text {
+  margin: 0 0 22px;
+  color: var(--text-given);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+
+.modal-btn:active {
+  transform: scale(0.96);
+}
+
+.modal-btn-cancel {
+  background: var(--surface-1);
+  color: var(--text-given);
+}
+
+.modal-btn-cancel:hover {
+  background: var(--surface-1-hover);
+}
+
+.modal-btn-danger {
+  background: var(--conflict);
+  color: #ffffff;
+}
+
+.modal-btn-danger:hover {
+  background: var(--conflict-hover);
+}
+
+.modal-btn-primary {
+  background: var(--text-input);
+  color: #ffffff;
+}
+
+.modal-btn-primary:hover {
+  background: var(--text-sel);
+}
+
+.coop-vote-status {
+  flex: 0 0 auto;
+  width: 22px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 700;
+  text-align: center;
+  color: rgba(var(--text-given-rgb), 0.35);
+}
+
+.coop-vote-status.agreed {
+  color: var(--text-input);
+}
+
+/* ── 저장/불러오기, 도움말, 퍼즐 선택 — 키패드 패널과 같은 지위의 떠있는 패널 ──
+   DragPanel로 마우스 드래그 이동이 가능하도록 left/top(px)로 위치를 잡는다.
+   최초로 열릴 때 JS가 현재 크기를 기준으로 화면 중앙에 오도록 left/top을
+   한 번 계산해주고, 그 이후엔 사용자가 옮긴 위치가 유지된다. */
+.floating-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  touch-action: pan-y; /* 전역 touch-action:none 아래서도 패널 내용 스크롤은 허용 */
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(var(--glass-rgb), 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 24px 60px rgba(20, 24, 40, 0.28);
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.floating-panel.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.floating-panel-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-given);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.floating-panel-close:hover {
+  background: var(--surface-1-hover);
+}
+
+.floating-panel-close:active {
+  transform: scale(0.92);
+}
+
+.floating-panel-title {
+  margin: 0 0 18px;
+  padding-right: 24px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+/* ── 저장/도움말/퍼즐선택/자동생성/답지/협동중지투표 — 모바일(세로·가로 공통)에서는
+   화면 중앙에 뜨는 카드 대신 하단에서 올라오는 시트로. main.js의 openFloatingPanel()이
+   isMobile()일 때 인라인 left/top 계산을 건너뛰므로 여기서 위치를 전담해도 다투지 않는다.
+   desktopOnly라 드래그도 안 되므로 cursor:grab도 의미가 없다. ── */
+[data-layout^="mobile"] .floating-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  max-height: 85vh;
+  max-height: 85dvh;
+  border-radius: 20px 20px 0 0;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  cursor: default;
+  transform: translateY(100%);
+  /* opacity도 같이 명시해야 한다 - transition은 부분 오버라이드가 안 되는 shorthand라,
+     여기서 transform만 적자면 데스크톱 규칙의 opacity 트랜지션이 통째로 사라져서
+     opacity가 즉시 튀어버리고(특히 닫힐 때 슬라이드가 안 보이게 됨) transform만 애니메이션된다. */
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+[data-layout^="mobile"] .floating-panel.show {
+  transform: translateY(0);
+}
+
+[data-layout^="mobile"] .floating-panel-close {
+  width: 36px;
+  height: 36px;
+}
+
+/* ── 저장/불러오기 슬롯 ── */
+.save-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.save-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.save-slot-label {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-given);
+}
+
+.save-slot-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.save-btn,
+.load-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
+}
+
+.save-btn {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+}
+
+.save-btn:hover {
+  background: var(--cell-selected-hover);
+}
+
+.load-btn {
+  background: var(--surface-1);
+  color: var(--text-given);
+}
+
+.load-btn:hover:not(:disabled) {
+  background: var(--surface-1-hover);
+}
+
+.load-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.save-btn:active,
+.load-btn:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+/* ── 도움말 패널 — 단축키(왼쪽) · 규칙 설명(오른쪽) 2단 구성 ── */
+#help-panel {
+  width: 620px;
+}
+
+/* #help-panel은 id 선택자라 특이도가 .floating-panel(class)보다 높아서, 모바일 시트
+   규칙이 클래스만으로는 이 width:620px를 못 이긴다 - 여기서 별도로 덮어써야 한다. */
+[data-layout^="mobile"] #help-panel {
+  width: 100%;
+}
+
+.help-columns {
+  display: flex;
+  gap: 24px;
+}
+
+[data-layout^="mobile"] .help-columns {
+  flex-direction: column;
+  gap: 20px;
+}
+
+.help-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.help-col-title {
+  margin: 0 0 14px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-given);
+  opacity: 0.7;
+}
+
+.help-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.help-keys {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.help-desc {
+  color: rgba(var(--text-given-rgb), 0.7);
+  margin-left: auto;
+  text-align: right;
+}
+
+/* ── 규칙 설명 목록 — 라벨 + 설명 문장을 세로로 쌓는다(단축키 목록과 달리 한 줄에 안 맞음) ── */
+.help-rules {
+  gap: 16px;
+}
+
+.help-rule-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.help-rule-label {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-1);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.help-rule-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(var(--text-given-rgb), 0.72);
+}
+
+/* ── 퍼즐 선택 목록 ── */
+.puzzle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.puzzle-item {
+  height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-given);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.puzzle-item:hover {
+  background: var(--surface-2-hover);
+}
+
+.puzzle-item:active {
+  transform: scale(0.98);
+}
+
+.puzzle-item.active {
+  background: var(--cell-selected);
+  color: var(--text-sel);
+  cursor: default;
+}
+
+kbd {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--surface-1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-given);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   데일리 스도쿠 — 랜딩 카드 / 요소 사이드바 / 결과·통계 모달
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.landing-date {
+  margin: -20px 0 24px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(var(--text-given-rgb), 0.55);
+}
+
+.daily-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.daily-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 16px 18px;
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  border-radius: 16px;
+  background: var(--surface-solid);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.08);
+  transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.daily-card:hover {
+  background: var(--surface-solid-hover);
+  box-shadow: 0 6px 16px rgba(20, 24, 40, 0.16);
+}
+
+.daily-card:active { transform: scale(0.98); }
+
+.daily-card-name {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.daily-card-desc {
+  font-size: 12px;
+  color: rgba(var(--text-given-rgb), 0.55);
+}
+
+.daily-card-status {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.6);
+}
+
+.daily-card-status[data-status="solved"]  { background: var(--cell-selected); color: var(--text-sel); }
+.daily-card-status[data-status="timeout"] { background: var(--surface-danger); color: var(--conflict); }
+.daily-card-status[data-status="playing"] { background: #fff3d6; color: #a9791d; }
+[data-theme="dark"] .daily-card-status[data-status="playing"] { background: #3a3320; color: #e0b24c; }
+
+.landing-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(var(--text-given-rgb), 0.55);
+}
+
+.landing-mini-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.landing-mini-btn {
+  flex: 1;
+  height: 38px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(var(--text-given-rgb), 0.6);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.landing-mini-btn:hover { background: var(--surface-1); color: var(--text-given); }
+
+.landing-footer {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgba(var(--text-given-rgb), 0.38);
+}
+.landing-footer a { color: inherit; text-decoration: none; }
+.landing-footer a:hover { color: rgba(var(--text-given-rgb), 0.7); text-decoration: underline; }
+.landing-footer span { margin: 0 6px; }
+
+/* 카운트다운 위험(1분 미만) */
+.timer-display.timer-danger {
+  color: var(--conflict);
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── 모바일 타이머 배지 — 우상단에 작게. 데스크톱은 키패드 안 #timer-display 그대로 ── */
+.timer-badge { display: none; }
+
+[data-layout^="mobile"] .timer-display { display: none !important; }
+
+[data-layout^="mobile"] .timer-badge.show {
+  display: block;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  z-index: 46;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(var(--glass-rgb), 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  box-shadow: 0 4px 14px rgba(20, 24, 40, 0.18);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  color: var(--text-given);
+  pointer-events: none;
+}
+
+[data-layout^="mobile"] .timer-badge.timer-danger {
+  color: var(--conflict);
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+
+/* 요소 안내 사이드바 (책갈피) — 요소마다 독립 책갈피 하나씩, 각자 펼침/접힘 */
+.element-sidebar {
+  position: fixed;
+  top: 88px;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  /* 접힌 책갈피의 본문은 화면 밖으로 transform 되지만 레이아웃 폭(≈290px)은 그대로라,
+     이 컨테이너가 화면 좌측 상단을 덮는 투명 상자로 남아 게임판 클릭을 가로챈다.
+     컨테이너/래퍼는 클릭을 통과시키고, 실제로 보이는 손잡이·본문만 이벤트를 받게 한다. */
+  pointer-events: none;
+}
+
+.element-sidebar[hidden] { display: none; }
+
+.element-bookmark {
+  --bw: 250px;
+  display: flex;
+  align-items: stretch;
+  transform: translateX(calc(-1 * var(--bw)));
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.element-bookmark.open { transform: translateX(0); }
+
+.element-bookmark-handle,
+.element-bookmark-body { pointer-events: auto; }
+
+.element-bookmark-body {
+  order: 1;
+  width: var(--bw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 15px;
+  border-radius: 0 4px 4px 0;
+  background: rgba(var(--glass-rgb), 0.95);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  border-left: none;
+  box-shadow: 12px 0 40px rgba(20, 24, 40, 0.18);
+}
+
+.element-bookmark-handle {
+  order: 2;
+  flex: 0 0 auto;
+  /* 모든 책갈피 손잡이를 동일한 고정 크기로 — 이모지/글자 폭 차이로 크기가 달라지지 않게 */
+  width: 40px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(var(--glass-rgb), 0.6);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  background: var(--text-input);
+  cursor: pointer;
+  box-shadow: 6px 0 18px rgba(20, 24, 40, 0.16);
+}
+
+.element-bookmark-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.element-bookmark-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.element-bookmark-head b { font-size: 16px; }
+
+.element-bookmark-head em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.55);
+}
+
+.element-bookmark-desc {
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(var(--text-given-rgb), 0.7);
+}
+
+[data-layout^="mobile"] .element-sidebar { top: 56px; gap: 8px; }
+[data-layout^="mobile"] .element-bookmark { --bw: min(74vw, 250px); }
+
+/* 데일리 결과 모달 */
+.daily-result-card { width: min(340px, calc(100vw - 32px)); text-align: center; }
+
+.daily-result-detail {
+  margin: 6px 0 16px;
+  font-size: 14px;
+  color: rgba(var(--text-given-rgb), 0.7);
+}
+
+.daily-result-grid {
+  display: inline-block;   /* 내용 폭에 맞춘 박스가 부모의 text-align:center 로 가운데 정렬 */
+  margin: 0 0 18px;
+  font-size: 22px;
+  line-height: 1.25;
+  white-space: pre;        /* 공유 텍스트와 같은 문자열 그대로 (앞쪽 공백 들여쓰기 포함) */
+  text-align: left;        /* 박스 안에서는 왼쪽 정렬 — 계단 들여쓰기가 어긋나지 않게 */
+}
+
+.daily-result-card .modal-actions { flex-wrap: wrap; }
+.daily-result-card .modal-btn { min-width: 84px; }
+
+.daily-share-note {
+  margin: 12px 0 0;
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--text-input);
+}
+
+/* 데일리 통계 모달 */
+.daily-stats-card { width: min(360px, calc(100vw - 32px)); position: relative; }
+
+.game-help-card { width: min(380px, calc(100vw - 32px)); position: relative; }
+
+.help-rules { display: flex; flex-direction: column; gap: 12px; }
+.help-rules p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(var(--text-given-rgb), 0.8);
+}
+.help-rules strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-input);
+}
+
+.daily-stats-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.daily-stats-tab {
+  flex: 1;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.6);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.daily-stats-tab.active { background: var(--text-input); color: #fff; }
+
+.daily-stats-numbers {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.daily-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.daily-stat strong {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.daily-stat span {
+  font-size: 10px;
+  color: rgba(var(--text-given-rgb), 0.55);
+  text-align: center;
+}
+
+.daily-stats-subtitle {
+  margin: 0 0 10px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.daily-stats-dist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+
+/* ── 통계 달력(히트맵) ── */
+.daily-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.daily-cal-nav .daily-stats-subtitle { margin: 0; min-width: 92px; text-align: center; }
+.daily-cal-arrow {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.7);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.daily-cal-arrow:hover { background: var(--surface-2, rgba(var(--text-given-rgb), 0.1)); color: var(--text-given); }
+.daily-cal-arrow:disabled { opacity: 0.3; cursor: default; }
+
+.daily-stats-cal { margin-bottom: 18px; }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.cal-head { margin-bottom: 3px; }
+
+.cal-dow {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(var(--text-given-rgb), 0.4);
+  padding: 1px 0;
+}
+
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: var(--surface-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-cell--blank  { background: transparent; }
+.cal-cell--miss   { background: rgba(var(--text-given-rgb), 0.06); }
+.cal-cell--future { opacity: 0.3; }
+.cal-cell--today  { box-shadow: inset 0 0 0 2px hsl(145 60% 28%); }
+.cal-cell--pickable { cursor: pointer; }
+.cal-cell--pickable:hover { box-shadow: inset 0 0 0 2px rgba(var(--text-given-rgb), 0.3); }
+.cal-cell--picked { box-shadow: inset 0 0 0 3px var(--text-input); }
+.cal-cell--picked.cal-cell--today { box-shadow: inset 0 0 0 3px var(--text-input); }
+
+.cal-share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -8px 0 18px;
+}
+.cal-share-btn {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--surface-1);
+  color: rgba(var(--text-given-rgb), 0.7);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cal-share-btn:hover { background: var(--surface-1-hover); color: var(--text-given); }
+.cal-share-row .daily-share-note { margin: 0; }
+
+.cal-day {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(var(--text-given-rgb), 0.4);
+}
+.cal-cell--filled .cal-day { color: rgba(255, 255, 255, 0.75); }
+
+.cal-val {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.dist-row { display: flex; align-items: center; gap: 8px; }
+
+.dist-label {
+  flex: 0 0 56px;
+  font-size: 11px;
+  color: rgba(var(--text-given-rgb), 0.6);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dist-bar-wrap { flex: 1; display: flex; }
+
+.dist-bar {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--text-input);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  transition: width 0.3s ease;
+}
+
+.dist-bar-fail { background: var(--conflict); }
+
+.daily-stats-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--text-given-rgb), 0.12);
+}
+
+.daily-next { display: flex; flex-direction: column; gap: 2px; }
+
+.daily-next span { font-size: 11px; color: rgba(var(--text-given-rgb), 0.55); }
+
+.daily-next strong {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-given);
+}
+
+.daily-stats-footer .modal-btn { flex: 0 0 auto; min-width: 76px; height: 40px; }
+.daily-stats-footer .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   DailyTrilateral 전용 — 피라미드 게임 화면 (스도쿠의 board-panel/keypad-panel
+   대신 새로 만든 것. 색상 토큰·모달·랜딩 시스템은 위 것을 그대로 씀)
+   ══════════════════════════════════════════════════════════════════════ */
+
+.pyra-game {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  gap: 10px;
+}
+
+.pyra-topbar {
+  width: 100%;
+  max-width: 640px;
+  /* 양쪽 버튼 글자 길이가 달라도 가운데(점 4개)가 항상 바 전체의 정확한 중앙에 오도록
+     grid로 좌우를 동일한 폭(1fr)으로 강제 — flex justify-content:space-between이었을 때는
+     "두 버튼 사이의 중앙"이라 버튼 폭이 다르면 실제 중앙에서 살짝 벗어났었다. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.pyra-topbar-btn:first-child { justify-self: start; }
+.pyra-topbar-right { justify-self: end; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.pyra-topbar-btn {
+  border: none;
+  background: var(--surface-1);
+  color: var(--text-given);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pyra-topbar-btn:hover { background: var(--surface-1-hover); }
+
+.pyra-topbar-btn-primary { background: var(--text-input); color: #ffffff; }
+.pyra-topbar-btn-primary:hover { background: var(--text-sel); }
+
+/* 좁은 화면(~360px 이하)에서는 통계·도움말·추측 제출 세 버튼이 한 줄에 다 안 들어가
+   여백을 파고들 수 있어서, 이 폭부터는 여백/글자를 한 단계 줄여 오른쪽 밖으로
+   밀려나지 않게 한다. */
+@media (max-width: 380px) {
+  .pyra-topbar { gap: 4px; }
+  .pyra-topbar-right { gap: 4px; }
+  .pyra-topbar-btn { padding: 7px 9px; font-size: 12px; }
+  .pyra-topbar-icon-btn { width: 28px; height: 28px; font-size: 13px; }
+}
+@media (max-width: 340px) {
+  .pyra-topbar { gap: 3px; }
+  .pyra-topbar-right { gap: 3px; }
+  .pyra-topbar-btn { padding: 6px 7px; font-size: 11px; }
+  .pyra-topbar-icon-btn { width: 26px; height: 26px; font-size: 12px; }
+}
+
+.pyra-topbar-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  border-radius: 50%;
+}
+
+.pyra-guesses {
+  display: flex;
+  gap: 5px;
+}
+.pyra-guess-pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 2px var(--grid-line);
+}
+.pyra-guess-pip.used-ok   { background: var(--text-input); box-shadow: none; }
+.pyra-guess-pip.used-fail { background: var(--conflict); box-shadow: none; }
+
+.pyramid-stage {
+  position: relative;
+  width: min(560px, 92vw);
+  aspect-ratio: 4 / 3;
+  flex: 1 1 auto;
+  max-height: 62vh;
+}
+
+.pyramid-links, .pyramid-tiles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pyramid-links { pointer-events: none; }
+/* .pyramid-tiles는 타일들의 빈 여백까지 포함한 꽉 찬 박스라, pointer-events를 꺼서
+   빈 공간의 클릭은 아래 SVG 링크로 그대로 통과시키고 타일 버튼 자신만 다시 켠다. */
+.pyramid-tiles { pointer-events: none; }
+.pyramid-tile { pointer-events: auto; }
+
+.pyramid-link {
+  stroke: var(--grid-line);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: none; /* 클릭 판정은 .pyramid-link-hit가 전담 — 이건 순수 표시용 */
+  transition: stroke 0.15s;
+}
+.pyramid-link.is-marked { stroke: #e0a72c; stroke-width: 4; }
+.pyramid-link.is-locked { stroke: var(--text-input); stroke-width: 4; }
+.pyramid-link.is-broken { stroke: var(--conflict); stroke-width: 3; stroke-dasharray: 4 3; }
+
+/* 대각선을 손가락/마우스로 정확히 맞히기 어려워서 클릭 판정 영역만 훨씬 두껍게 깔아둔 투명 선.
+   화면 픽셀 기준 24px 굵기 고정(non-scaling-stroke) — 확대·축소돼도 항상 누르기 쉬운 두께 유지. */
+.pyramid-link-hit {
+  stroke: transparent;
+  stroke-width: 24;
+  cursor: pointer;
+}
+
+.pyramid-tile {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 15%;
+  aspect-ratio: 1;
+  max-width: 58px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-solid);
+  color: var(--text-given);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06), inset 0 0 0 2px var(--grid-line);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: clamp(13px, 3.2vw, 17px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+}
+.pyramid-tile.is-locked {
+  background: var(--cell-selected);
+  box-shadow: inset 0 0 0 2px var(--text-input);
+  color: var(--text-sel);
+  cursor: default;
+}
+/* 타일이 그룹째로 들려 다른 곳으로 옮겨 다니는 동안, 원래 자리가 텅 비어 보이지 않도록
+   깔아두는 글자 없는 빈 원. 평소엔 안 보이다가 .show가 붙은 슬롯만 나타난다. */
+.pyramid-tile-ghost {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 15%;
+  aspect-ratio: 1;
+  max-width: 58px;
+  border-radius: 50%;
+  border: 2px dashed var(--grid-line);
+  /* §6.20 — 배경을 투명하게 두면 그룹 내부 연결선이 이 자리를 지나갈 때 원 뒤로 선이 그대로
+     비쳐 보인다(실제 타일이라면 안 보여야 할 것). 실제 타일과 같은 불투명 배경으로 채워서
+     뒤에 있는 선을 가려주되, 점선 테두리는 그대로 둬서 "빈 자리 표시"라는 느낌은 유지한다. */
+  background: var(--surface-solid);
+  opacity: 0;
+  pointer-events: none;
+}
+.pyramid-tile-ghost.show { opacity: 1; }
+
+.pyramid-tile.dragging {
+  cursor: grabbing;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.18), inset 0 0 0 2px var(--text-input);
+}
+.pyramid-tile:disabled { cursor: default; }
+
+/* §6.21 — 예전엔 드래그 중 "딸려오는" 그룹 멤버가 깊이(레벨) 경계를 넘을 때마다 값이 이산적
+   으로 툭 바뀌어서 그 순간에만 짧게 트랜지션을 걸었었다(.pyramid-tile--snap/-link--snap).
+   지금은 그룹 전체가 커서 이동량 그대로 완전한 강체(rigid body)로 움직이도록 되돌려서
+   그런 이산적 전환 자체가 없어졌고, 그 트랜지션 클래스들도 더는 어디서도 안 붙인다(코드에서
+   완전히 제거) — 남겨두면 "언제 걸리는 건지" 헷갈리기만 해서 이 규칙도 같이 지움.
+
+   §6.17 — 이동이 끝나 자리의 글자가 바뀌는 순간, 살짝 오므라들었다 펴지며 새 글자로
+   교체되는 느낌을 준다(오버슈트 없는 곡선이라 튕기지 않음). 기본 위치는 CSS가 이미
+   translate(-50%,-50%)로 잡아주므로, 여기서도 그 이동값은 그대로 유지한 채 scale만 건다. */
+@keyframes pyramid-tile-swap-pop {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  40% { transform: translate(-50%, -50%) scale(0.82); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+.pyramid-tile.pyramid-tile--swap {
+  animation: pyramid-tile-swap-pop 0.22s cubic-bezier(.25, .46, .45, .94);
+}
+
+/* 캘린더 3색(§1.9) — DailySudoku는 시간 기반 그라데이션을 썼지만 여기는 성공/실패 단색만 */
+.cal-cell--solved { background: var(--text-input); }
+.cal-cell--fail { background: var(--conflict); }
+
+/* 시도 분포 막대(§1.12) — DailySudoku의 .daily-stats-dist 안에 넣어 쓰는 한 줄짜리 막대 */
+.pyra-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.pyra-dist-label { width: 44px; flex: 0 0 auto; color: rgba(var(--text-given-rgb), 0.7); }
+.pyra-dist-track { flex: 1 1 auto; height: 10px; background: var(--surface-1); border-radius: 5px; overflow: hidden; }
+.pyra-dist-fill { height: 100%; background: var(--text-input); border-radius: 5px; }
+.pyra-dist-count { width: 22px; flex: 0 0 auto; text-align: right; color: rgba(var(--text-given-rgb), 0.7); }

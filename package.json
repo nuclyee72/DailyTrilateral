@@ -1,0 +1,18 @@
+{
+  "name": "daily-trilateral",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "피라미드 모양 음절 조합 퍼즐 '삼각관계'(DailyTrilateral) — 정적 사이트 (GitHub Pages) + Actions 일일 퍼즐 생성",
+  "scripts": {
+    "build-word-data": "node scripts/build-word-data.mjs",
+    "test-generator": "node scripts/test-tree-generator.mjs",
+    "generate-daily": "node scripts/generate-daily.mjs",
+    "dev": "node scripts/dev-server.mjs",
+    "test-e2e": "node scripts/test-e2e.mjs",
+    "test-groups-fuzz": "node scripts/test-pyramid-groups-fuzz.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
