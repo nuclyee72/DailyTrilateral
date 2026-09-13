@@ -29,6 +29,14 @@ export function buildShareText({ date, guesses, url }) {
   return parts.join('\n');
 }
 
+/** 자유 연습 연속 도전 성공 공유용 전체 텍스트 — 이번 판의 결과보다 "몇 연속째인지"가 핵심. */
+export function buildFreePlayShareText({ streak, guesses, url }) {
+  const seq = buildGuessEmojiSequence(guesses);
+  const parts = [`데일리 삼각관계 · 자유 연습 ${streak}연속 도전 성공!`, seq, ''];
+  if (url) parts.push(url);
+  return parts.join('\n');
+}
+
 const CAL_EMOJI = { solved: '🟩', fail: '🟥', miss: '⬜', pad: '⬛' };
 
 /**

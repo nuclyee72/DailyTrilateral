@@ -2,7 +2,7 @@ import { dateStrKST, shiftDateStr, msUntilNextReset, formatCountdown } from './d
 import {
   loadProgress, saveProgress, recordResult, summarize, DIST_BUCKETS, MAX_GUESSES,
 } from './daily/storage.js';
-import { buildShareText, buildCalendarShareText, buildGuessEmojiSequence } from './daily/share.js';
+import { buildShareText, buildFreePlayShareText, buildCalendarShareText, buildGuessEmojiSequence } from './daily/share.js';
 import {
   createGameState, reviveGameState, serializeGameState,
   tryMove, toggleMark, submitGuess, brokenEdges, guessesLeft,
@@ -255,11 +255,16 @@ btnSubmitGuess.addEventListener('click', () => {
 });
 
 function showResultModal() {
-  const { state, date, archive } = session;
-  dailyResultTitle.textContent = state.status === 'solved' ? '🎉 성공!' : '아쉬워요';
-  dailyResultDetail.textContent = archive
-    ? `${date} · 연습 플레이 (기록에는 반영되지 않아요)`
-    : `${date} · ${state.guesses.length}번째에 ${state.status === 'solved' ? '성공' : '실패'}`;
+  const { state, date, archive, freePlay } = session;
+  const freePlayWin = freePlay && state.status === 'solved';
+  dailyResultTitle.textContent = freePlayWin
+    ? `🔥 ${freePlayStreak}연속 도전 성공!`
+    : state.status === 'solved' ? '🎉 성공!' : '아쉬워요';
+  dailyResultDetail.textContent = freePlayWin
+    ? '연속 도전 기록은 저장되지 않아요 — 메인 화면으로 나가면 초기화돼요.'
+    : archive
+      ? `${date} · 연습 플레이 (기록에는 반영되지 않아요)`
+      : `${date} · ${state.guesses.length}번째에 ${state.status === 'solved' ? '성공' : '실패'}`;
   dailyResultGrid.textContent = buildGuessEmojiSequence(state.guesses);
   dailyShareNote.textContent = '';
   openPanel(dailyResultModal);
@@ -268,7 +273,10 @@ btnDailyResultClose.addEventListener('click', () => closePanel(dailyResultModal)
 dailyResultModal.addEventListener('click', (e) => { if (e.target === dailyResultModal) closePanel(dailyResultModal); });
 btnDailyResultStats.addEventListener('click', () => { closePanel(dailyResultModal); openStatsModal(); });
 btnDailyResultShare.addEventListener('click', async () => {
-  const text = buildShareText({ date: session.date, guesses: session.state.guesses, url: SITE_URL });
+  const { state, freePlay } = session;
+  const text = freePlay && state.status === 'solved'
+    ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, url: SITE_URL })
+    : buildShareText({ date: session.date, guesses: state.guesses, url: SITE_URL });
   const ok = await copyText(text);
   dailyShareNote.textContent = ok ? '클립보드에 복사했어요!' : '복사에 실패했어요.';
 });
