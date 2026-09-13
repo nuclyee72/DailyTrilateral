@@ -2672,6 +2672,18 @@ kbd {
 .pyra-guess-pip.used-ok   { background: var(--text-input); box-shadow: none; }
 .pyra-guess-pip.used-fail { background: var(--conflict); box-shadow: none; }
 
+/* 자유 연습 연속 도전 카운트 — 상단 바 바로 아래, 오른쪽 정렬로 계속 떠 있는 배지 */
+.pyra-streak-badge {
+  width: 100%;
+  max-width: 640px;
+  margin: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-input);
+  flex: 0 0 auto;
+}
+
 .pyramid-stage {
   position: relative;
   width: min(560px, 92vw);

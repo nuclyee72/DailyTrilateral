@@ -34,6 +34,7 @@ const btnGameStats    = $('btn-game-stats');
 const btnGameHelp     = $('btn-game-help');
 const btnSubmitGuess  = $('btn-submit-guess');
 const btnContinueStreak = $('btn-continue-streak');
+const streakBadge = $('pyra-streak-badge');
 
 const gameHelpModal = $('game-help-modal');
 const gameHelpClose = $('game-help-close');
@@ -158,9 +159,12 @@ function renderGame({ animate = true } = {}) {
   btnSubmitGuess.hidden = offerContinue;
   btnContinueStreak.hidden = !offerContinue;
   btnSubmitGuess.disabled = state.status !== 'playing';
-  if (offerContinue) {
-    btnContinueStreak.textContent = freePlayStreak <= 1 ? '연속 도전' : `${freePlayStreak}연속 도전`;
-  }
+
+  // 연속 도전 횟수는 버튼 라벨이 아니라, 상단 바 아래 오른쪽에 계속 떠 있는 배지로 보여준다 —
+  // 지금 몇 연속째를 플레이 중인지(승리 화면뿐 아니라 그 다음 판을 푸는 동안에도) 알 수 있게.
+  const showStreakBadge = session.freePlay && freePlayStreak > 0;
+  streakBadge.hidden = !showStreakBadge;
+  if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전`;
 }
 
 function afterStateChange() {
