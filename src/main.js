@@ -201,10 +201,17 @@ function renderGame({ animate = true } = {}) {
 
   // 연속 도전 횟수는 버튼 라벨이 아니라, 상단 바 아래 오른쪽에 계속 떠 있는 배지로 보여준다 —
   // 지금 몇 연속째를 플레이 중인지(승리 화면뿐 아니라 그 다음 판을 푸는 동안에도) 알 수 있게.
-  // 1승째는 아직 "연속"이라 부르기 애매하니 2연속부터만 띄운다(showResultModal의 같은 기준과 통일).
-  const showStreakBadge = session.freePlay && freePlayStreak >= 2;
+  // freePlayStreak은 "확정된 승리 수"라서, 승리 화면(도전 중이 아님)에선 그 값 그대로가
+  // 맞지만 — 이미 1승 이상 해놓고 "연속 도전"으로 다음 판을 푸는 중(playing)이라면 지금
+  // 도전 중인 판은 freePlayStreak+1번째라서 그 값을 그대로 쓰면 한 판씩 뒤처져 보인다
+  // (예: 2연속 성공하고 이어서 3번째 판을 푸는 중인데 배지는 여전히 "2연속"). 그래서
+  // "도전 중"일 땐 +1을 더해 지금 몇 번째 판을 풀고 있는지로 보정한다.
+  const inProgress = state.status === 'playing';
+  const streakDisplay = freePlayStreak + (inProgress && freePlayStreak > 0 ? 1 : 0);
+  // 1판째는 아직 "연속"이라 부르기 애매하니 2연속부터만 띄운다(showResultModal의 같은 기준과 통일).
+  const showStreakBadge = session.freePlay && streakDisplay >= 2;
   streakBadge.hidden = !showStreakBadge;
-  if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전중`;
+  if (showStreakBadge) streakBadge.textContent = `${streakDisplay}연속 도전중`;
 
   // 게임이 끝난 뒤에만 정답 보기를 제공 — 진행 중엔 안 보임. "연속 도전" 중엔 같이 안 띄운다
   // (버튼 4개가 좁은 화면에서 한 줄에 다 안 들어가기도 하고, 승리 화면은 이미 보드 전체가
