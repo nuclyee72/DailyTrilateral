@@ -227,4 +227,25 @@ const edgeOf = (p, c) => TREE_EDGES.findIndex((e) => e.parent === p && e.child =
   }
 }
 
+// 13) [버그 리포트] draggedSlot 자신도 여러 칸짜리 그룹의 일부일 때, 11)의 안전장치가
+//     "내 그룹 동료까지 같이 움직이는 것"을 "제3자 침범"으로 오인해서 막던 문제.
+//     그룹A={메(1),모(3),레(7)} 3칸 체인(잠금), 그룹B={월(4),말(9)} 2칸(마킹, 시=10은 자유).
+//     모→월은 원래도 됐지만, 월→모는 draggedSlot(4)이 속한 그룹B의 동료 9(말)까지 같이
+//     옮겨지는 게 정상인데 이걸 "제3자"로 오인해 막혔었다.
+{
+  const locked = new Set([edgeOf(1, 3), edgeOf(3, 7)]);
+  const marked = new Set([edgeOf(4, 9)]);
+  const active = new Set([...locked, ...marked]);
+  const forward = planGroupMove(active, 3, 4);  // 모(그룹A 멤버) → 월(그룹B 자리)
+  const backward = planGroupMove(active, 4, 3); // 월(그룹B 멤버) → 모(그룹A 자리)
+  assert('[버그] 3칸 체인 쪽에서 드래그하는 방향은 허용됨', forward !== null);
+  assert('[버그] 반대로 2칸 그룹 쪽에서 드래그하는 방향도 이제 허용됨', backward !== null);
+  if (forward && backward) {
+    const same = forward.size === backward.size
+      && [...forward].every(([k, v]) => backward.get(k) === v);
+    assert('양방향 결과가 완전히 동일한 재배치', same);
+    assert('메(1)는 그대로, 모(3)↔월(4)/레(7)↔말(9) 교환', forward.get(1) === 1 && forward.get(3) === 4 && forward.get(4) === 3 && forward.get(7) === 9 && forward.get(9) === 7);
+  }
+}
+
 console.log('\n모든 검증 끝.');

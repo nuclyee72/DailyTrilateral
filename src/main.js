@@ -33,6 +33,7 @@ const btnGoLanding    = $('btn-go-landing');
 const btnGameStats    = $('btn-game-stats');
 const btnGameHelp     = $('btn-game-help');
 const btnSubmitGuess  = $('btn-submit-guess');
+const btnContinueStreak = $('btn-continue-streak');
 
 const gameHelpModal = $('game-help-modal');
 const gameHelpClose = $('game-help-close');
@@ -103,8 +104,10 @@ async function loadDailyPuzzle(date) {
 
 // ── 게임 세션 ──
 let renderer = null;
-let session = null; // { date, archive, state }
+let session = null; // { date, archive, freePlay, state }
 let resultShown = false;
+let freePlayStreak = 0; // 자유 연습 연속 성공 횟수(세션 한정, 저장 안 함) — "메인 화면"에서
+                         // 새로 자유 연습을 시작하면 0으로 리셋, 연속 도전으로 이어가면 유지.
 
 function ensureRenderer() {
   if (renderer) return renderer;
@@ -148,7 +151,16 @@ function renderGame({ animate = true } = {}) {
     animate,
   });
   renderGuessPips();
+
+  // 자유 연습에서 성공하면 "추측 제출" 자리를 "연속 도전"으로 바꿔서 바로 다음 판으로
+  // 이어갈 수 있게 한다 — 실패했거나 데일리/아카이브면 평소대로 제출 버튼만 보인다.
+  const offerContinue = session.freePlay && state.status === 'solved';
+  btnSubmitGuess.hidden = offerContinue;
+  btnContinueStreak.hidden = !offerContinue;
   btnSubmitGuess.disabled = state.status !== 'playing';
+  if (offerContinue) {
+    btnContinueStreak.textContent = freePlayStreak <= 1 ? '연속 도전' : `${freePlayStreak}연속 도전`;
+  }
 }
 
 function afterStateChange() {
@@ -170,6 +182,9 @@ btnSubmitGuess.addEventListener('click', () => {
   if (!session) return;
   const result = submitGuess(session.state);
   if (!result) return;
+  if (session.freePlay) {
+    freePlayStreak = result.solved ? freePlayStreak + 1 : 0;
+  }
   afterStateChange();
   if (session.state.status !== 'playing' && !resultShown) {
     resultShown = true;
@@ -240,12 +255,17 @@ function refreshLandingCard() {
 }
 
 // ── 자유 연습 ── (§1.16 — v1: 서버 생성기 없이 클라이언트에서 즉석 생성)
-btnFreePlay.addEventListener('click', async () => {
+async function startFreePlay() {
   const { generateTree } = await import('./generator/treeGenerator.js');
   const result = generateTree(); // 시드 없음 = 매번 다른 트리
   const state = createGameState('free', result.tiles);
-  openGame({ date: '자유 연습', archive: true, state });
+  openGame({ date: '자유 연습', archive: true, freePlay: true, state });
+}
+btnFreePlay.addEventListener('click', () => {
+  freePlayStreak = 0; // 메인 화면에서 새로 시작하는 거라 연속 기록 리셋
+  startFreePlay();
 });
+btnContinueStreak.addEventListener('click', startFreePlay); // 스트릭은 유지한 채 바로 다음 판으로
 
 // ── 뒤로가기 ──
 btnGoLanding.addEventListener('click', showLanding);

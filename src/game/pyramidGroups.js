@@ -187,20 +187,23 @@ export function planGroupMove(activeEdgeIdxSet, draggedSlot, targetSlot) {
   // 다만 이 대안은 두 가지를 추가로 확인해야 안전하다:
   // 1) "targetSlot의 원래 주인이 draggedSlot 자리로 간다"만 보장할 뿐, "draggedSlot의 원래
   //    주인(내가 끌던 타일)이 targetSlot에 정확히 안착한다"는 그 자체로는 보장 안 됨 — 밀려나는
-  //    사슬이 여러 단으로 얽히면(내 자유 타일 말고 다른 구멍/침입자가 더 있으면) 내가 끌던
+  //    사슬이 여러 단으로 얽히면(내 쪽 그룹 말고 다른 구멍/침입자가 더 있으면) 내가 끌던
   //    타일이 엉뚱한 다른 빈 자리로 튈 수 있다.
   // 2) targetSlot이 속한 그룹이 새 자리(newRoot)를 찾다가 자기 원래 위치에서 아예 다른
-  //    가지로 옮겨갈 수 있는데(예: {3,7}을 6-14 자리로), 그러면 그 그룹 멤버가 아니고 내가
-  //    드래그하지도 않은 제3의 자유 타일(6)까지 덩달아 끌려다니는 예상 밖의 결과가 나온다 —
-  //    "자유 타일 하나를 그룹 슬롯 위로" 놓았을 뿐인데 전혀 무관한 자리까지 바뀌면 안 된다.
-  // 그래서 바뀌는 자리가 딱 "그 그룹 멤버들 + 내 원래 자리"로만 한정될 때만 채택한다.
+  //    가지로 옮겨갈 수 있는데(예: {3,7}을 6-14 자리로), 그러면 그 그룹 멤버도 아니고 내
+  //    그룹 멤버도 아닌 제3의 자유 타일(6)까지 덩달아 끌려다니는 예상 밖의 결과가 나온다.
+  // 그래서 바뀌는 자리가 딱 "targetSlot의 그룹 멤버들 + draggedSlot이 속한 그룹 멤버들"로만
+  // 한정될 때만 채택한다 — draggedSlot 자신이 이미 여러 칸짜리 그룹의 일부일 수도 있어서
+  // (예: {월,말} 그룹의 월을 끌 때 말도 함께 따라오는 건 "제3자 침범"이 아니라 정상 동작),
+  // draggedSlot 하나만이 아니라 draggedSlot이 속한 그룹 전체를 허용 범위에 넣어야 한다.
   const adj = buildAdjacency(activeEdgeIdxSet);
   const foreignGroup = connectedComponent(targetSlot, adj);
+  const draggedGroup = connectedComponent(draggedSlot, adj);
   const backward = planGroupMoveOneWay(activeEdgeIdxSet, targetSlot, draggedSlot);
   if (
     backward
     && backward.get(draggedSlot) === targetSlot
-    && [...backward.keys()].every((k) => foreignGroup.has(k) || k === draggedSlot)
+    && [...backward.keys()].every((k) => foreignGroup.has(k) || draggedGroup.has(k))
   ) return backward;
   return null;
 }
