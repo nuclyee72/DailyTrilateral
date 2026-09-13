@@ -270,6 +270,10 @@ export class PyramidRenderer {
     };
 
     el.addEventListener('pointerdown', (e) => {
+      // disabled(게임 종료 후 등)여도 브라우저가 pointerdown 자체는 그냥 통과시켜서,
+      // 최종 이동은 tryMove가 막아주더라도 드래그하는 "동작"(따라다니는 애니메이션)은
+      // 그대로 재생되는 문제가 있었다 — 여기서 아예 시작조차 안 되게 막는다.
+      if (el.disabled) return;
       if (pointerId !== null) return;
       pointerId = e.pointerId;
       startX = e.clientX; startY = e.clientY;
