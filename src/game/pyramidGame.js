@@ -137,22 +137,28 @@ export function submitGuess(state) {
 }
 
 /**
- * §1.8 Broken Links — 마지막 게스에서 틀렸던 "글자 조합"이 지금도 어딘가에 그대로 있으면
- * 끊어짐(빨강)으로 표시한다.
+ * §1.8 Broken Links — 지금까지의 모든 게스에서 한 번이라도 틀렸던 "글자 조합"이 지금도
+ * 어딘가에 그대로 있으면 끊어짐(빨강)으로 표시한다.
  *
  * 자리(슬롯) 기준이 아니라 값(글자) 기준으로 봐야 한다 — 틀렸던 두 글자를 그룹으로 묶어
  * 다른 위치로 옮겼을 때도(§1.4 그룹 이동으로 완전히 다른 슬롯 쌍이 됨) 그 조합 자체는
  * 여전히 "이미 틀렸다고 확인된" 조합이므로 계속 빨갛게 보여야 한다 — 자리만 보고 판정하면
  * 옮긴 순간 빨간불이 꺼져버려서, 사실상 이미 검증된 오답 조합을 다시 못 알아보게 된다.
+ *
+ * "마지막 게스"만이 아니라 **모든** 게스를 누적해서 봐야 한다 — n번째 게스에서 틀렸다고
+ * 확인된 조합이, 그 다음 게스 땐 다른 자리로 옮겨져 있어서 재검증이 안 됐더라도(즉 마지막
+ * 게스의 correct[]엔 그 조합이 등장조차 안 함), 나중에 그 조합이 다시 인접하게 되면 여전히
+ * "이미 틀렸다고 확인된" 조합이므로 계속 빨갛게 보여야 한다.
  * @returns {Set<number>} TREE_EDGES 인덱스 집합
  */
 export function brokenEdges(state) {
-  const last = state.guesses[state.guesses.length - 1];
-  if (!last) return new Set();
+  if (!state.guesses.length) return new Set();
   const wrongPairs = new Set();
-  TREE_EDGES.forEach(({ parent, child }, k) => {
-    if (!last.correct[k]) wrongPairs.add(`${last.positions[parent]}|${last.positions[child]}`);
-  });
+  for (const g of state.guesses) {
+    TREE_EDGES.forEach(({ parent, child }, k) => {
+      if (!g.correct[k]) wrongPairs.add(`${g.positions[parent]}|${g.positions[child]}`);
+    });
+  }
   const out = new Set();
   TREE_EDGES.forEach(({ parent, child }, k) => {
     if (state.locked.has(k)) return;

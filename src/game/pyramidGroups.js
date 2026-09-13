@@ -142,15 +142,8 @@ function tryPlanOnce(adj, group, root, draggedPath, newRoot, reflect, forceFlipA
   return mapping;
 }
 
-/**
- * @param {Set<number>} activeEdgeIdxSet TREE_EDGES 인덱스 중 초록(locked) + 주황(marked) 전부
- * @param {number} draggedSlot 드래그를 시작한 슬롯
- * @param {number} targetSlot 드롭한 슬롯
- * @returns {Map<number,number>|null} oldSlot→newSlot 매핑(성공 시). 불가능하면 null(스냅백).
- */
-export function planGroupMove(activeEdgeIdxSet, draggedSlot, targetSlot) {
-  if (draggedSlot === targetSlot) return null; // 제자리 — 무시
-
+/** planGroupMove의 편도 계산 — draggedSlot이 속한 그룹 기준으로만 시도한다(아래 참고). */
+function planGroupMoveOneWay(activeEdgeIdxSet, draggedSlot, targetSlot) {
   const adj = buildAdjacency(activeEdgeIdxSet);
   const group = connectedComponent(draggedSlot, adj);
 
@@ -170,6 +163,46 @@ export function planGroupMove(activeEdgeIdxSet, draggedSlot, targetSlot) {
 
   return tryPlanOnce(adj, group, root, draggedPath, newRoot, reflect, -1)
     ?? tryPlanOnce(adj, group, root, draggedPath, newRoot, reflect, draggedPath.length);
+}
+
+/**
+ * @param {Set<number>} activeEdgeIdxSet TREE_EDGES 인덱스 중 초록(locked) + 주황(marked) 전부
+ * @param {number} draggedSlot 드래그를 시작한 슬롯
+ * @param {number} targetSlot 드롭한 슬롯
+ * @returns {Map<number,number>|null} oldSlot→newSlot 매핑(성공 시). 불가능하면 null(스냅백).
+ */
+export function planGroupMove(activeEdgeIdxSet, draggedSlot, targetSlot) {
+  if (draggedSlot === targetSlot) return null; // 제자리 — 무시
+
+  const forward = planGroupMoveOneWay(activeEdgeIdxSet, draggedSlot, targetSlot);
+  if (forward) return forward;
+
+  // draggedSlot 기준으로 막혔다 — 예를 들어 자유 타일 하나를 여러 칸짜리 그룹의 슬롯 위로
+  // 끌어다 놓는 경우. 편도 계산이 "장애물이 자유 타일(크기 1)이면 무조건 허용, 그 외 그룹이면
+  // 통째로 내 목적지 안에 들어와야만 허용"이라 어느 쪽에서 드래그를 시작했느냐에 따라 결과가
+  // 갈리는 비대칭이 있었다(긴 사슬도 크기와 무관하게 마찬가지). 반대 방향(그 그룹의 대표
+  // 멤버를 내 원래 자리로 끌어온 것)으로 다시 계산해보면, 물리적으로 같은 스왑인 단순한
+  // 경우엔 성공한다.
+  //
+  // 다만 이 대안은 두 가지를 추가로 확인해야 안전하다:
+  // 1) "targetSlot의 원래 주인이 draggedSlot 자리로 간다"만 보장할 뿐, "draggedSlot의 원래
+  //    주인(내가 끌던 타일)이 targetSlot에 정확히 안착한다"는 그 자체로는 보장 안 됨 — 밀려나는
+  //    사슬이 여러 단으로 얽히면(내 자유 타일 말고 다른 구멍/침입자가 더 있으면) 내가 끌던
+  //    타일이 엉뚱한 다른 빈 자리로 튈 수 있다.
+  // 2) targetSlot이 속한 그룹이 새 자리(newRoot)를 찾다가 자기 원래 위치에서 아예 다른
+  //    가지로 옮겨갈 수 있는데(예: {3,7}을 6-14 자리로), 그러면 그 그룹 멤버가 아니고 내가
+  //    드래그하지도 않은 제3의 자유 타일(6)까지 덩달아 끌려다니는 예상 밖의 결과가 나온다 —
+  //    "자유 타일 하나를 그룹 슬롯 위로" 놓았을 뿐인데 전혀 무관한 자리까지 바뀌면 안 된다.
+  // 그래서 바뀌는 자리가 딱 "그 그룹 멤버들 + 내 원래 자리"로만 한정될 때만 채택한다.
+  const adj = buildAdjacency(activeEdgeIdxSet);
+  const foreignGroup = connectedComponent(targetSlot, adj);
+  const backward = planGroupMoveOneWay(activeEdgeIdxSet, targetSlot, draggedSlot);
+  if (
+    backward
+    && backward.get(draggedSlot) === targetSlot
+    && [...backward.keys()].every((k) => foreignGroup.has(k) || k === draggedSlot)
+  ) return backward;
+  return null;
 }
 
 /**

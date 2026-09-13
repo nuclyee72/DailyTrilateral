@@ -2701,7 +2701,7 @@ kbd {
 }
 .pyramid-link.is-marked { stroke: #e0a72c; stroke-width: 4; }
 .pyramid-link.is-locked { stroke: var(--text-input); stroke-width: 4; }
-.pyramid-link.is-broken { stroke: var(--conflict); stroke-width: 3; stroke-dasharray: 4 3; }
+.pyramid-link.is-broken { stroke: var(--conflict); stroke-width: 3; stroke-dasharray: 4 7; }
 
 /* 대각선을 손가락/마우스로 정확히 맞히기 어려워서 클릭 판정 영역만 훨씬 두껍게 깔아둔 투명 선.
    화면 픽셀 기준 24px 굵기 고정(non-scaling-stroke) — 확대·축소돼도 항상 누르기 쉬운 두께 유지. */

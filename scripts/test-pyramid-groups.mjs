@@ -209,4 +209,22 @@ const edgeOf = (p, c) => TREE_EDGES.findIndex((e) => e.parent === p && e.child =
   }
 }
 
+// 12) [버그 리포트] 자유 타일을 "그룹 쪽으로" 끌어다 놓는 방향이 막히던 문제.
+//     그룹{0(사),1(건)}이 잠겨 있고 2(회)는 자유 타일일 때, 건→회는 원래도 됐지만
+//     회→건(반대 방향)은 draggedSlot(2) 기준 그룹이 크기 1이라 "장애물 그룹({0,1})이
+//     통째로 목적지 안에 들어와야 한다"는 조건에 걸려 막혔었음 — 물리적으로는 완전히
+//     같은 스왑인데 어느 쪽에서 드래그를 시작하느냐에 따라 결과가 갈리는 비대칭이었다.
+{
+  const locked = new Set([edgeOf(0, 1)]);
+  const forward = planGroupMove(locked, 1, 2);  // 건(그룹 멤버) → 회(자유타일): 원래도 됨
+  const backward = planGroupMove(locked, 2, 1); // 회(자유타일) → 건(그룹 멤버): 원래는 막혔음
+  assert('[버그] 그룹 멤버 → 자유 타일 방향은 허용됨', forward !== null);
+  assert('[버그] 반대로 자유 타일 → 그룹 멤버 방향도 이제 허용됨', backward !== null);
+  if (forward && backward) {
+    assert('양방향 결과가 동일한 스왑(사는 그대로, 건↔회만 교환)',
+      forward.get(0) === 0 && forward.get(1) === 2 && forward.get(2) === 1
+      && backward.get(0) === 0 && backward.get(1) === 2 && backward.get(2) === 1);
+  }
+}
+
 console.log('\n모든 검증 끝.');
