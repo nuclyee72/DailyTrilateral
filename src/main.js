@@ -201,9 +201,10 @@ function renderGame({ animate = true } = {}) {
 
   // 연속 도전 횟수는 버튼 라벨이 아니라, 상단 바 아래 오른쪽에 계속 떠 있는 배지로 보여준다 —
   // 지금 몇 연속째를 플레이 중인지(승리 화면뿐 아니라 그 다음 판을 푸는 동안에도) 알 수 있게.
-  const showStreakBadge = session.freePlay && freePlayStreak > 0;
+  // 1승째는 아직 "연속"이라 부르기 애매하니 2연속부터만 띄운다(showResultModal의 같은 기준과 통일).
+  const showStreakBadge = session.freePlay && freePlayStreak >= 2;
   streakBadge.hidden = !showStreakBadge;
-  if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전`;
+  if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전중`;
 
   // 게임이 끝난 뒤에만 정답 보기를 제공 — 진행 중엔 안 보임. "연속 도전" 중엔 같이 안 띄운다
   // (버튼 4개가 좁은 화면에서 한 줄에 다 안 들어가기도 하고, 승리 화면은 이미 보드 전체가
@@ -236,7 +237,7 @@ btnViewAnswer.addEventListener('click', () => {
 });
 
 // ── 추측 제출 ──
-btnSubmitGuess.addEventListener('click', () => {
+function handleSubmitGuess() {
   if (!session) return;
   const result = submitGuess(session.state);
   if (!result) return;
@@ -252,12 +253,25 @@ btnSubmitGuess.addEventListener('click', () => {
     }
     showResultModal();
   }
-});
+}
+btnSubmitGuess.addEventListener('click', handleSubmitGuess);
+
+// 개발용 치트 — 콘솔에서 __solve() 호출하면 현재 판을 정답으로 채우고 그대로 제출까지 해버림
+// (연속 도전 스트릭처럼 여러 판을 빠르게 이어가며 테스트할 때 직접 드래그하지 않아도 되게).
+// 프로덕션에 남아있어도 콘솔에서 직접 호출해야만 동작하고, 어차피 로컬 저장 기록만 건드리는
+// 개인 퍼즐이라 다른 사람에게 영향 없음.
+window.__solve = () => {
+  if (!session) return;
+  session.state.positions = [...session.state.solution];
+  handleSubmitGuess();
+};
 
 function showResultModal() {
   const { state, date, archive, freePlay } = session;
   const freePlayWin = freePlay && state.status === 'solved';
-  dailyResultTitle.textContent = freePlayWin
+  // 1승째는 아직 "연속"이라 부르기 애매하니 배지와 같은 기준(2연속부터)으로 문구를 바꾼다.
+  const showStreak = freePlayWin && freePlayStreak >= 2;
+  dailyResultTitle.textContent = showStreak
     ? `🔥 ${freePlayStreak}연속 도전 성공!`
     : state.status === 'solved' ? '🎉 성공!' : '아쉬워요';
   dailyResultDetail.textContent = freePlayWin
@@ -274,7 +288,8 @@ dailyResultModal.addEventListener('click', (e) => { if (e.target === dailyResult
 btnDailyResultStats.addEventListener('click', () => { closePanel(dailyResultModal); openStatsModal(); });
 btnDailyResultShare.addEventListener('click', async () => {
   const { state, freePlay } = session;
-  const text = freePlay && state.status === 'solved'
+  // 결과창 문구와 같은 기준(2연속부터) — 1승째 공유 문구에 "1연속 도전 성공!"이라고 쓰면 어색하다.
+  const text = freePlay && state.status === 'solved' && freePlayStreak >= 2
     ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, url: SITE_URL })
     : buildShareText({ date: session.date, guesses: state.guesses, url: SITE_URL });
   const ok = await copyText(text);
