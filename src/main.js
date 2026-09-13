@@ -149,14 +149,30 @@ function renderGame({ animate = true } = {}) {
   const gameOver = state.status !== 'playing';
 
   if (gameOver && viewingAnswer) {
-    // 정답 보기 — 정답 배치로 그리되, 4번째 추측까지 실제로 확정(locked)된 관계만 실선,
-    // 끝까지 못 맞힌 관계는 중립 점선으로 구분한다. 오답(빨강) 표시는 여기선 의미 없음.
+    // 정답 보기 — 정답 배치(state.solution)로 그리되, 4번째 추측까지 실제로 확정(locked)된
+    // "관계"만 실선, 끝까지 못 맞힌 관계는 중립 점선으로 구분한다. 오답(빨강) 표시는 의미 없음.
+    //
+    // state.locked는 "슬롯(자리)" 인덱스인데, 그 슬롯이 가리키는 자리는 플레이어의 최종
+    // 배치(state.positions) 기준이지 정답의 표준 배치(state.solution) 기준이 아니다 — 형제
+    // 순서가 자유라서(§1.17) 플레이어가 확정한 그 관계가 정답 배치에서는 좌우가 뒤집힌 다른
+    // 슬롯 쌍에 있을 수 있다. 그래서 자리가 아니라 "그 조합(값)" 자체로 옮겨 다니며 맞춰야
+    // 확정한 묶음이 그대로(같은 관계로) 정답 트리 위에 표시된다 — brokenEdges와 같은 원리.
+    const confirmedPairs = new Set();
+    state.locked.forEach((k) => {
+      const { parent, child } = TREE_EDGES[k];
+      confirmedPairs.add(`${state.positions[parent]}|${state.positions[child]}`);
+    });
+    const solidEdges = new Set();
     const dashedNeutral = new Set();
-    TREE_EDGES.forEach((_, k) => { if (!state.locked.has(k)) dashedNeutral.add(k); });
+    TREE_EDGES.forEach(({ parent, child }, k) => {
+      const pairKey = `${state.solution[parent]}|${state.solution[child]}`;
+      if (confirmedPairs.has(pairKey)) solidEdges.add(k);
+      else dashedNeutral.add(k);
+    });
     ensureRenderer().render({
       positions: state.solution,
       marked: new Set(),
-      locked: state.locked,
+      locked: solidEdges,
       broken: new Set(),
       dashedNeutral,
       interactive: false,
@@ -175,9 +191,11 @@ function renderGame({ animate = true } = {}) {
   renderGuessPips();
 
   // 자유 연습에서 성공하면 "추측 제출" 자리를 "연속 도전"으로 바꿔서 바로 다음 판으로
-  // 이어갈 수 있게 한다 — 실패했거나 데일리/아카이브면 평소대로 제출 버튼만 보인다.
+  // 이어갈 수 있게 한다. 그 외(데일리/아카이브, 또는 자유 연습 실패)에 게임이 끝나면
+  // "추측 제출"은 더는 아무 쓸모가 없으니(늘 비활성) 자리만 차지하지 않게 아예 숨긴다 —
+  // "정답 보기"가 새로 그 옆(상단 바)에 추가돼서 4개가 한 줄에 다 들어가기 빠듯하기도 하다.
   const offerContinue = session.freePlay && state.status === 'solved';
-  btnSubmitGuess.hidden = offerContinue;
+  btnSubmitGuess.hidden = offerContinue || gameOver;
   btnContinueStreak.hidden = !offerContinue;
   btnSubmitGuess.disabled = state.status !== 'playing';
 
@@ -187,8 +205,10 @@ function renderGame({ animate = true } = {}) {
   streakBadge.hidden = !showStreakBadge;
   if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전`;
 
-  // 게임이 끝난 뒤에만 정답 보기를 제공 — 진행 중엔 안 보임.
-  btnViewAnswer.hidden = !gameOver;
+  // 게임이 끝난 뒤에만 정답 보기를 제공 — 진행 중엔 안 보임. "연속 도전" 중엔 같이 안 띄운다
+  // (버튼 4개가 좁은 화면에서 한 줄에 다 안 들어가기도 하고, 승리 화면은 이미 보드 전체가
+  // 초록이라 정답 보기가 새로 보여줄 게 없다).
+  btnViewAnswer.hidden = !gameOver || offerContinue;
   btnViewAnswer.textContent = viewingAnswer ? '내 결과 보기' : '정답 보기';
 }
 

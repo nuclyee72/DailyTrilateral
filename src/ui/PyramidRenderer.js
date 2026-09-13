@@ -119,6 +119,8 @@ export class PyramidRenderer {
     // 배치를 기억해둔다. null이면 "아직 비교할 이전 상태가 없다"(최초 그리기/새 판 시작)는
     // 뜻이라 애니메이션을 걸지 않는다.
     this._prevPositions = null;
+    // 드롭 직후 한 번의 render()에서만 "방금 드래그한 슬롯들"을 알려주는 임시 값(§ 참고).
+    this._justDraggedFromSlots = null;
   }
 
   /** slot이 지금(this._view 기준) 속한 그룹의 슬롯 목록 */
@@ -255,7 +257,13 @@ export class PyramidRenderer {
         for (const clone of cloneEls.values()) clone.remove();
         cloneEls = new Map();
         const target = this._hitTest(e.clientX, e.clientY, slot);
-        if (target !== null) this.handlers.onDrop?.(slot, target);
+        if (target !== null) {
+          // 방금 실제로 드래그했던 그룹(들고 있던 슬롯들)은 드래그하는 내내 이미 부드럽게
+          // 움직이는 걸 보여줬으니, 다음 render()에서 또 "슝" 날아오게 하면 중복이다 —
+          // 그 자리들은 곧바로 고정(순간 배치)하고, 그 대신 밀려난 쪽만 날아오게 한다.
+          this._justDraggedFromSlots = new Set(groupSlots);
+          this.handlers.onDrop?.(slot, target);
+        }
       }
       dragging = false;
       groupSlots = [slot];
@@ -332,6 +340,11 @@ export class PyramidRenderer {
   render({ positions, marked, locked, broken, dashedNeutral = new Set(), interactive = true, animate = true }) {
     this._view = { marked, locked };
     const prev = this._prevPositions;
+    // 방금 드래그로 직접 옮긴 그룹의 "원래 있던 슬롯들" — 그 값들은 드래그하는 동안 이미
+    // 부드럽게 움직이는 걸 보여줬으니 이번 render()에서는 순간 배치하고, 그 값이 아닌(=밀려난
+    // 쪽) 나머지만 슝 하고 날아오게 한다. 이번 한 번의 render()에만 적용하고 바로 비운다.
+    const justDraggedFrom = this._justDraggedFromSlots;
+    this._justDraggedFromSlots = null;
     for (let i = 0; i < TOTAL_NODES; i++) {
       const el = this.tileEls[i];
       // 이동(그룹 이동/스왑)이 실제로 끝나 이 자리의 글자가 바뀐 경우에만(§6.17) "슝" 하고
@@ -340,8 +353,13 @@ export class PyramidRenderer {
       // fromSlot을 못 찾는(있을 수 없지만 방어적으로) 경우에만 예전의 "팝" 효과로 대체.
       if (animate && prev && prev[i] !== positions[i]) {
         const fromSlot = prev.indexOf(positions[i]);
-        if (fromSlot !== -1 && fromSlot !== i) this._playFlyEffect(el, fromSlot, i);
-        else this._playSwapEffect(el);
+        if (fromSlot !== -1 && justDraggedFrom && justDraggedFrom.has(fromSlot)) {
+          // 방금 내가 직접 끌고 온 값 — 이미 드래그로 여기까지 왔으니 추가 연출 없이 고정.
+        } else if (fromSlot !== -1 && fromSlot !== i) {
+          this._playFlyEffect(el, fromSlot, i);
+        } else {
+          this._playSwapEffect(el);
+        }
       }
       el.textContent = positions[i];
       el.disabled = !interactive;
