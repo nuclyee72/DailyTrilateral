@@ -2673,16 +2673,21 @@ kbd {
 .pyra-guess-pip.used-ok   { background: var(--text-input); box-shadow: none; }
 .pyra-guess-pip.used-fail { background: var(--conflict); box-shadow: none; }
 
-/* 자유 연습 연속 도전 카운트 — 상단 바 바로 아래, 오른쪽 정렬로 계속 떠 있는 배지 */
-.pyra-streak-badge {
+/* 상단 바 바로 아래, 오른쪽 정렬 보조 줄 — 연속 도전 배지 + 정답 보기 버튼 */
+.pyra-subbar {
   width: 100%;
   max-width: 640px;
-  margin: 0;
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.pyra-streak-badge {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-input);
-  flex: 0 0 auto;
 }
 
 .pyramid-stage {
@@ -2715,6 +2720,9 @@ kbd {
 .pyramid-link.is-marked { stroke: #e0a72c; stroke-width: 4; }
 .pyramid-link.is-locked { stroke: var(--text-input); stroke-width: 4; }
 .pyramid-link.is-broken { stroke: var(--conflict); stroke-width: 3; stroke-dasharray: 4 7; }
+/* 정답 보기 — 끝까지 확정 못 한(4번째 추측까지 안 이어진) 관계. 오답(빨강)과는 다른
+   중립색 점선으로, "틀렸다"가 아니라 "맞긴 한데 못 찾았다"는 느낌을 준다. */
+.pyramid-link.is-answer-dashed { stroke: rgba(var(--text-given-rgb), 0.4); stroke-width: 3; stroke-dasharray: 4 7; }
 
 /* 대각선을 손가락/마우스로 정확히 맞히기 어려워서 클릭 판정 영역만 훨씬 두껍게 깔아둔 투명 선.
    화면 픽셀 기준 24px 굵기 고정(non-scaling-stroke) — 확대·축소돼도 항상 누르기 쉬운 두께 유지. */

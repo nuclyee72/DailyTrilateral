@@ -8,6 +8,7 @@ import {
   tryMove, toggleMark, submitGuess, brokenEdges, guessesLeft,
 } from './game/pyramidGame.js';
 import { PyramidRenderer } from './ui/PyramidRenderer.js';
+import { TREE_EDGES } from './generator/treeGenerator.js';
 
 const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
 const DAILY_FIRST_DATE = '2026-09-01'; // 아카이브에서 고를 수 있는 가장 이른 날짜
@@ -35,6 +36,7 @@ const btnGameHelp     = $('btn-game-help');
 const btnSubmitGuess  = $('btn-submit-guess');
 const btnContinueStreak = $('btn-continue-streak');
 const streakBadge = $('pyra-streak-badge');
+const btnViewAnswer = $('btn-view-answer');
 
 const gameHelpModal = $('game-help-modal');
 const gameHelpClose = $('game-help-close');
@@ -109,6 +111,7 @@ let session = null; // { date, archive, freePlay, state }
 let resultShown = false;
 let freePlayStreak = 0; // 자유 연습 연속 성공 횟수(세션 한정, 저장 안 함) — "메인 화면"에서
                          // 새로 자유 연습을 시작하면 0으로 리셋, 연속 도전으로 이어가면 유지.
+let viewingAnswer = false; // 게임 종료 후 "정답 보기"로 정답 배치를 보고 있는 중인지
 
 function ensureRenderer() {
   if (renderer) return renderer;
@@ -143,14 +146,32 @@ function renderGuessPips() {
 
 function renderGame({ animate = true } = {}) {
   const { state } = session;
-  ensureRenderer().render({
-    positions: state.positions,
-    marked: state.marked,
-    locked: state.locked,
-    broken: brokenEdges(state),
-    interactive: state.status === 'playing',
-    animate,
-  });
+  const gameOver = state.status !== 'playing';
+
+  if (gameOver && viewingAnswer) {
+    // 정답 보기 — 정답 배치로 그리되, 4번째 추측까지 실제로 확정(locked)된 관계만 실선,
+    // 끝까지 못 맞힌 관계는 중립 점선으로 구분한다. 오답(빨강) 표시는 여기선 의미 없음.
+    const dashedNeutral = new Set();
+    TREE_EDGES.forEach((_, k) => { if (!state.locked.has(k)) dashedNeutral.add(k); });
+    ensureRenderer().render({
+      positions: state.solution,
+      marked: new Set(),
+      locked: state.locked,
+      broken: new Set(),
+      dashedNeutral,
+      interactive: false,
+      animate,
+    });
+  } else {
+    ensureRenderer().render({
+      positions: state.positions,
+      marked: state.marked,
+      locked: state.locked,
+      broken: brokenEdges(state),
+      interactive: state.status === 'playing',
+      animate,
+    });
+  }
   renderGuessPips();
 
   // 자유 연습에서 성공하면 "추측 제출" 자리를 "연속 도전"으로 바꿔서 바로 다음 판으로
@@ -165,6 +186,10 @@ function renderGame({ animate = true } = {}) {
   const showStreakBadge = session.freePlay && freePlayStreak > 0;
   streakBadge.hidden = !showStreakBadge;
   if (showStreakBadge) streakBadge.textContent = `${freePlayStreak}연속 도전`;
+
+  // 게임이 끝난 뒤에만 정답 보기를 제공 — 진행 중엔 안 보임.
+  btnViewAnswer.hidden = !gameOver;
+  btnViewAnswer.textContent = viewingAnswer ? '내 결과 보기' : '정답 보기';
 }
 
 function afterStateChange() {
@@ -175,11 +200,20 @@ function afterStateChange() {
 function openGame(newSession) {
   session = newSession;
   resultShown = false;
+  viewingAnswer = false;
   showGame();
   // 새 판을 여는 첫 렌더는 "직전 상태"가 없는 최초 그리기라 §6.17의 교체 효과를 걸 대상이
   // 아님 — 이걸 안 끄면 새 판이 열릴 때마다 15칸이 전부 팝하며 그려지는 이상한 연출이 됨.
   renderGame({ animate: false });
 }
+
+// ── 정답 보기 ──
+btnViewAnswer.addEventListener('click', () => {
+  if (!session) return;
+  viewingAnswer = !viewingAnswer;
+  // 뷰만 바꾸는 것이지 타일이 실제로 움직인 게 아니므로 슝 하는 이동 효과는 걸지 않는다.
+  renderGame({ animate: false });
+});
 
 // ── 추측 제출 ──
 btnSubmitGuess.addEventListener('click', () => {

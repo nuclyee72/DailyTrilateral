@@ -283,7 +283,7 @@ export class PyramidRenderer {
     return null;
   }
 
-  /** 타일 하나에 "팝" 교체 효과를 (재생 중이었으면 처음부터 다시) 튼다 */
+  /** 타일 하나에 "팝" 교체 효과를 (재생 중이었으면 처음부터 다시) 튼다 — fromSlot을 못 찾았을 때의 대체용. */
   _playSwapEffect(el) {
     // 클래스를 지웠다가 바로 다시 붙이면 브라우저가 "변화 없음"으로 보고 애니메이션을 다시
     // 재생하지 않을 수 있어서, 중간에 강제로 리플로우를 한 번 일으켜 재시작을 보장한다.
@@ -294,24 +294,55 @@ export class PyramidRenderer {
   }
 
   /**
+   * slot(toSlot)의 글자가 fromSlot에 있던 값으로 바뀌었을 때, "그 글자가 fromSlot 자리에서
+   * toSlot 자리로 슝 하고 날아온" 것처럼 보이게 한다 — 실제로 두 자리(DOM 엘리먼트)는 고정돼
+   * 있으니, toSlot 엘리먼트를 순간적으로 fromSlot의 화면 위치에 겹쳐 놓았다가(transition 끔)
+   * 바로 원래 위치로 트랜지션을 걸어 되돌린다. 드래그 중인 그룹이 커서를 따라 움직이는 것과
+   * 같은 translate 방식이라, 자유 스왑이든(§1.4) 여러 칸짜리 그룹 이동이든 — 바뀐 자리 전부에
+   * 똑같이 적용되므로 단체 이동도 자연히 같은 효과를 받는다.
+   */
+  _playFlyEffect(el, fromSlot, toSlot) {
+    const stageRect = this.root.getBoundingClientRect();
+    const dx = ((LAYOUT[fromSlot].leftPct - LAYOUT[toSlot].leftPct) / 100) * stageRect.width;
+    const dy = ((LAYOUT[fromSlot].topPct - LAYOUT[toSlot].topPct) / 100) * stageRect.height;
+    el.style.transition = 'none';
+    el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    el.style.zIndex = '5';
+    void el.offsetWidth; // 강제 리플로우 — 위 위치를 실제로 한 프레임 반영시킨 뒤에 트랜지션을 건다
+    el.style.transition = 'transform 0.22s cubic-bezier(.25, .46, .45, .94)';
+    el.style.transform = 'translate(-50%, -50%)';
+    el.addEventListener('transitionend', () => {
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.zIndex = '';
+    }, { once: true });
+  }
+
+  /**
    * @param {object} view
    * @param {string[]} view.positions 길이 15
    * @param {Set<number>} view.marked
    * @param {Set<number>} view.locked
    * @param {Set<number>} view.broken
+   * @param {Set<number>} [view.dashedNeutral] 정답 보기에서 "끝까지 확정 못 한" 관계 표시용(중립 점선)
    * @param {boolean} [view.interactive=true] false면 타일 드래그/마킹 비활성 (결과 확정 후 등)
    * @param {boolean} [view.animate=true] false면 배치가 바뀌어도 교체 효과 없이 그냥 그림
    *   (새 판을 처음 열 때처럼 "직전 상태"와 비교하는 게 의미 없을 때 호출 쪽에서 끈다)
    */
-  render({ positions, marked, locked, broken, interactive = true, animate = true }) {
+  render({ positions, marked, locked, broken, dashedNeutral = new Set(), interactive = true, animate = true }) {
     this._view = { marked, locked };
     const prev = this._prevPositions;
     for (let i = 0; i < TOTAL_NODES; i++) {
       const el = this.tileEls[i];
-      // 이동(그룹 이동/스왑)이 실제로 끝나 이 자리의 글자가 바뀐 경우에만(§6.17) 살짝
-      // "팝" 하는 교체 효과를 준다 — 마킹 토글이나 추측 제출처럼 배치 자체는 그대로인
-      // 갱신에서는 아무 자리도 바뀌지 않으니 자연히 효과가 안 걸린다.
-      if (animate && prev && prev[i] !== positions[i]) this._playSwapEffect(el);
+      // 이동(그룹 이동/스왑)이 실제로 끝나 이 자리의 글자가 바뀐 경우에만(§6.17) "슝" 하고
+      // 원래 있던 자리에서 날아온 것처럼 보이게 한다 — 마킹 토글이나 추측 제출처럼 배치
+      // 자체는 그대로인 갱신에서는 아무 자리도 바뀌지 않으니 자연히 효과가 안 걸린다.
+      // fromSlot을 못 찾는(있을 수 없지만 방어적으로) 경우에만 예전의 "팝" 효과로 대체.
+      if (animate && prev && prev[i] !== positions[i]) {
+        const fromSlot = prev.indexOf(positions[i]);
+        if (fromSlot !== -1 && fromSlot !== i) this._playFlyEffect(el, fromSlot, i);
+        else this._playSwapEffect(el);
+      }
       el.textContent = positions[i];
       el.disabled = !interactive;
     }
@@ -321,6 +352,7 @@ export class PyramidRenderer {
       line.classList.toggle('is-locked', locked.has(k));
       line.classList.toggle('is-marked', !locked.has(k) && marked.has(k));
       line.classList.toggle('is-broken', !locked.has(k) && broken.has(k));
+      line.classList.toggle('is-answer-dashed', !locked.has(k) && dashedNeutral.has(k));
       // §6.20 — 끊어짐(빨강)으로 확인된 조합은 클릭해도 마킹으로 연결할 수 없으므로(게임
       // 로직도 이미 막아두지만) 클릭 자체를 못 받게 해서 "눌러도 안 되는구나"가 바로
       // 느껴지게 한다.
