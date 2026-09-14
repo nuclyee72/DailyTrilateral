@@ -6,7 +6,7 @@
 import { shiftDateStr } from './dateUtil.js';
 
 export const MAX_GUESSES = 4; // §1.5 — 스탠다드는 항상 고정 4회
-export const EXTENDED_MAX_GUESSES = 6; // 익스텐디드 모드(전체 단어) — 더 어려운 만큼 2번 더 줌
+export const EXTENDED_MAX_GUESSES = 5; // 익스텐디드 모드(전체 단어) — 더 어려운 만큼 1번 더 줌
 
 /** variant('standard'|'extended')에 맞는 최대 시도 횟수 */
 export function maxGuessesFor(variant) {
