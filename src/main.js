@@ -31,7 +31,6 @@ const dailyErrorEl    = $('daily-error');
 
 const btnDailyPlay   = $('btn-daily-play');
 const btnDailyPlayExtended = $('btn-daily-play-extended');
-const btnFreeplayExtended = $('btn-freeplay-extended');
 const btnFreePlay    = $('btn-free-play');
 const btnArchive     = $('btn-archive');
 const btnLandingStats = $('btn-landing-stats');
@@ -57,6 +56,12 @@ const archiveCalPrev  = $('archive-cal-prev');
 const archiveCalNext  = $('archive-cal-next');
 const archiveErrorEl  = $('archive-error');
 const btnArchivePlay  = $('btn-archive-play');
+const archiveTypeBtns = document.querySelectorAll('#landing-archive .archive-type');
+
+const freeplayModeModal = $('freeplay-mode-modal');
+const btnFreeplayStandard = $('btn-freeplay-standard');
+const btnFreeplayExtended = $('btn-freeplay-extended');
+const btnFreeplayModeCancel = $('btn-freeplay-mode-cancel');
 
 const dailyResultModal  = $('daily-result-modal');
 const dailyResultTitle  = $('daily-result-title');
@@ -294,7 +299,7 @@ function showResultModal() {
   dailyResultDetail.textContent = freePlayWin
     ? '연속 도전 기록은 저장되지 않아요 — 메인 화면으로 나가면 초기화돼요.'
     : archive
-      ? `${date} · 연습 플레이 (기록에는 반영되지 않아요)`
+      ? `${date}${freePlay ? '' : modeSuffix} · 연습 플레이 (기록에는 반영되지 않아요)`
       : `${date}${modeSuffix} · ${state.guesses.length}번째에 ${state.status === 'solved' ? '성공' : '실패'}`;
   dailyResultGrid.textContent = buildGuessEmojiSequence(state.guesses, state.maxGuesses);
   dailyShareNote.textContent = '';
@@ -360,35 +365,34 @@ function refreshLandingCard() {
 }
 
 // ── 자유 연습 ── (§1.16 — v1: 서버 생성기 없이 클라이언트에서 즉석 생성)
-// 익스텐디드 토글은 랜딩 화면에만 있고 게임 화면(연속 도전 버튼)에선 안 보이므로, 한 스트릭이
-// 진행되는 동안 사용자가 실수로 모드를 바꿔치기할 일이 없다 — 매번 그 시점의 토글값을 그대로 읽어도 안전.
-const FREEPLAY_EXTENDED_KEY = 'trilateral-freeplay-extended';
-let freePlayExtended = false;
-try { freePlayExtended = localStorage.getItem(FREEPLAY_EXTENDED_KEY) === '1'; } catch { /* 무시 */ }
+// 모드(스탠다드/익스텐디드)는 "자유 연습" 진입 시점에 팝업으로 고른다. 팝업은 랜딩에서만 뜨고
+// 게임 화면(연속 도전 버튼)에선 다시 안 물어보므로, 한 스트릭이 진행되는 동안 모드가 바뀔 일은
+// 없다 — startFreePlay()는 매번 마지막으로 고른 freePlayVariant를 그대로 읽어도 안전.
+let freePlayVariant = 'standard';
 
-function applyFreePlayExtendedToggle() {
-  btnFreeplayExtended.setAttribute('aria-pressed', String(freePlayExtended));
-}
-applyFreePlayExtendedToggle();
-btnFreeplayExtended.addEventListener('click', () => {
-  freePlayExtended = !freePlayExtended;
-  try { localStorage.setItem(FREEPLAY_EXTENDED_KEY, freePlayExtended ? '1' : '0'); } catch { /* 무시 */ }
-  applyFreePlayExtendedToggle();
+function openFreePlayModeModal() { openPanel(freeplayModeModal); }
+function closeFreePlayModeModal() { closePanel(freeplayModeModal); }
+btnFreeplayModeCancel.addEventListener('click', closeFreePlayModeModal);
+freeplayModeModal.addEventListener('click', (e) => { if (e.target === freeplayModeModal) closeFreePlayModeModal(); });
+[btnFreeplayStandard, btnFreeplayExtended].forEach((btn) => {
+  btn.addEventListener('click', () => {
+    closeFreePlayModeModal();
+    freePlayVariant = btn.dataset.variant;
+    freePlayStreak = 0; // 메인 화면에서 새로 고른 거라 연속 기록 리셋
+    startFreePlay();
+  });
 });
 
 async function startFreePlay() {
-  const variant = freePlayExtended ? 'extended' : 'standard';
+  const extended = freePlayVariant === 'extended';
   const { generateTree } = await import('./generator/treeGenerator.js');
-  const result = generateTree(undefined, { extended: freePlayExtended }); // 시드 없음 = 매번 다른 트리
-  const state = createGameState('free', result.tiles, { maxGuesses: maxGuessesFor(variant) });
-  const date = freePlayExtended ? '자유 연습 · 익스텐디드' : '자유 연습';
-  openGame({ date, archive: true, freePlay: true, variant, state });
+  const result = generateTree(undefined, { extended }); // 시드 없음 = 매번 다른 트리
+  const state = createGameState('free', result.tiles, { maxGuesses: maxGuessesFor(freePlayVariant) });
+  const date = extended ? '자유 연습 · 익스텐디드' : '자유 연습';
+  openGame({ date, archive: true, freePlay: true, variant: freePlayVariant, state });
 }
-btnFreePlay.addEventListener('click', () => {
-  freePlayStreak = 0; // 메인 화면에서 새로 시작하는 거라 연속 기록 리셋
-  startFreePlay();
-});
-btnContinueStreak.addEventListener('click', startFreePlay); // 스트릭은 유지한 채 바로 다음 판으로
+btnFreePlay.addEventListener('click', openFreePlayModeModal);
+btnContinueStreak.addEventListener('click', startFreePlay); // 스트릭은 유지한 채(모드도 그대로) 바로 다음 판으로
 
 // ── 뒤로가기 ──
 btnGoLanding.addEventListener('click', showLanding);
@@ -482,27 +486,48 @@ function makeCalendar({ gridEl, titleEl, prevEl, nextEl, pick = false, onPick = 
 }
 
 let archiveSelected = null;
+let archiveVariant = 'standard'; // 아카이브 안에서만 쓰는 전환 — 랜딩을 나가면 다음엔 다시 스탠다드로
 const archiveCal = makeCalendar({
   gridEl: archiveCalEl, titleEl: archiveCalTitle, prevEl: archiveCalPrev, nextEl: archiveCalNext,
   pick: true,
   onPick: (d) => { archiveSelected = d; btnArchivePlay.disabled = false; archiveErrorEl.textContent = ''; },
 });
 
+function paintArchiveCal(resetMonth) {
+  archiveCal.open(summarize(TODAY(), archiveVariant), {
+    selected: archiveSelected, minDate: DAILY_FIRST_DATE, maxDate: shiftDateStr(TODAY(), -1), resetMonth,
+  });
+}
+
 btnArchive.addEventListener('click', () => {
   landingMain.hidden = true;
   landingArchive.hidden = false;
   archiveSelected = null;
+  archiveVariant = 'standard';
   btnArchivePlay.disabled = true;
-  archiveCal.open(summarize(TODAY()), { minDate: DAILY_FIRST_DATE, maxDate: shiftDateStr(TODAY(), -1) });
+  archiveTypeBtns.forEach((b) => b.classList.toggle('active', b.dataset.variant === archiveVariant));
+  paintArchiveCal(true);
 });
 archiveBack.addEventListener('click', () => { landingArchive.hidden = true; landingMain.hidden = false; });
+
+archiveTypeBtns.forEach((b) => {
+  b.addEventListener('click', () => {
+    if (b.dataset.variant === archiveVariant) return;
+    archiveVariant = b.dataset.variant;
+    archiveSelected = null;
+    btnArchivePlay.disabled = true;
+    archiveErrorEl.textContent = '';
+    archiveTypeBtns.forEach((x) => x.classList.toggle('active', x === b));
+    paintArchiveCal(false); // 달은 유지하고 그 달의 결과 색만 다시 칠함
+  });
+});
 
 btnArchivePlay.addEventListener('click', async () => {
   if (!archiveSelected) return;
   try {
-    const puzzle = await loadDailyPuzzle(archiveSelected);
-    const state = createGameState(archiveSelected, puzzle.tiles);
-    openGame({ date: archiveSelected, archive: true, state });
+    const puzzle = await loadDailyPuzzle(archiveSelected, archiveVariant);
+    const state = createGameState(archiveSelected, puzzle.tiles, { maxGuesses: maxGuessesFor(archiveVariant) });
+    openGame({ date: archiveSelected, archive: true, variant: archiveVariant, state });
   } catch (err) {
     archiveErrorEl.textContent = '그 날짜의 퍼즐을 불러오지 못했어요.';
     console.error(err);

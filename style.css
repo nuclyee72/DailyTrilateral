@@ -2163,45 +2163,25 @@ kbd {
 
 .landing-mini-btn:hover { background: var(--surface-1); color: var(--text-given); }
 
-/* 자유 연습을 익스텐디드(전체 단어·6회)로 돌릴지 고르는 토글 칩 — 눌린 상태(aria-pressed)는
-   .daily-card-status[data-status="solved"]와 같은 강조색 쌍(--cell-selected/--text-sel)을 써서
-   "선택됨"이라는 의미를 이 화면 안에서 일관되게 전달한다. */
-.landing-toggle-chip {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  row-gap: 2px;
-  column-gap: 8px;
-  width: 100%;
-  min-height: 38px;
-  padding: 8px 14px;
-  margin-top: 2px;
-  border: 1px solid rgba(var(--glass-rgb), 0.6);
-  border-radius: 12px;
+/* 지난 퍼즐 아카이브에서 스탠다드/익스텐디드 달력을 전환하는 탭 — .daily-stats-tab과 같은
+   패턴(비활성 회색 알약, 활성은 --text-input 강조색)을 그대로 써서 통계 모달 탭과 통일감을 준다. */
+.archive-type-toggle { display: flex; gap: 6px; }
+.archive-type {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
   background: var(--surface-1);
-  color: rgba(var(--text-given-rgb), 0.7);
-  font-size: 12px;
-  font-weight: 600;
+  color: rgba(var(--text-given-rgb), 0.6);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.landing-toggle-chip:hover { background: var(--surface-solid-hover); }
-.landing-toggle-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: rgba(var(--text-given-rgb), 0.25);
-  transition: background 0.15s ease;
-}
-.landing-toggle-label { white-space: nowrap; }
-.landing-toggle-desc {
-  margin-left: auto;
-  font-weight: 400;
-  white-space: nowrap;
-  color: rgba(var(--text-given-rgb), 0.5);
-}
+.archive-type.active { background: var(--text-input); color: #fff; }
+
+/* 자유 연습 모드 선택 모달 — 랜딩의 데일리 카드(.daily-card)를 그대로 재사용해 "골라서 바로
+   시작"이라는 같은 상호작용을 모달 안에서도 일관되게 준다. */
+#freeplay-mode-modal .daily-cards { margin-bottom: 18px; }
 .landing-toggle-chip[aria-pressed="true"] {
   border-color: transparent;
   background: var(--cell-selected);
