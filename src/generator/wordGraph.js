@@ -4,6 +4,7 @@
  */
 import commonWords from '../data/words-common-2syl.json' with { type: 'json' };
 import allWords from '../data/words-all-2syl.json' with { type: 'json' };
+import extendedWords from '../data/words-extended-2syl.json' with { type: 'json' };
 
 /**
  * @param {string[]} words 2음절 단어 목록 (예: ["사과", "과일", ...])
@@ -28,6 +29,14 @@ export function buildGraph(words) {
 export const commonGraph = buildGraph(commonWords);
 /** 보조 풀 — 표준국어대사전 전체 (common으로 못 찾을 때 확장용, 정답 검증용) */
 export const allGraph = buildGraph(allWords);
+/**
+ * 익스텐디드 모드용 그래프 — 표준국어대사전 전체(allGraph)는 사어/고어/전문용어가 너무 많이
+ * 섞여서 그대로 쓰면 처음 보는 단어투성이가 됨. 국립국어원 "현대 국어 사용 빈도 조사"(900만
+ * 어절 실제 말뭉치)에서 한 번이라도 등장한 2음절 명사만 추려 — "사전에만 있는 단어"가 아니라
+ * "실제로 쓰인 단어"로 걸러낸 풀. words-common-2syl.json(2,185개)보다는 훨씬 넓고, 전체
+ * 사전(75,333개)보다는 훨씬 정제돼 있다 — src/data/README.md 참고.
+ */
+export const extendedGraph = buildGraph(extendedWords);
 
 /** a+b가 (일상 어휘든 사전 전체든) 실존하는 2음절 단어인지 — 링크 최종 검증용 */
 export function isValidWord(a, b) {
