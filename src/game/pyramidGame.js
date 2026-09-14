@@ -20,6 +20,7 @@ export { MAX_GUESSES };
  * @property {Set<number>} locked  초록(확정)된 TREE_EDGES 인덱스
  * @property {GuessRecord[]} guesses
  * @property {'playing'|'solved'|'failed'} status
+ * @property {number} maxGuesses 이 판에서 허용되는 최대 시도 횟수(스탠다드 4 / 익스텐디드 6)
  * @property {number} startedAt
  * @property {number|null} finishedAt
  */
@@ -33,8 +34,11 @@ function shuffled(arr) {
   return a;
 }
 
-/** 새 판 시작 (positions를 안 주면 solution을 섞어서 시작 배치를 만듦) */
-export function createGameState(date, solution, positions = null) {
+/**
+ * 새 판 시작 (positions를 안 주면 solution을 섞어서 시작 배치를 만듦)
+ * @param {{ positions?: string[]|null, maxGuesses?: number }} [opts]
+ */
+export function createGameState(date, solution, { positions = null, maxGuesses = MAX_GUESSES } = {}) {
   return {
     date,
     solution,
@@ -43,6 +47,7 @@ export function createGameState(date, solution, positions = null) {
     locked: new Set(),
     guesses: [],
     status: 'playing',
+    maxGuesses,
     startedAt: Date.now(),
     finishedAt: null,
   };
@@ -54,6 +59,8 @@ export function reviveGameState(progress) {
     ...progress,
     marked: new Set(progress.marked ?? []),
     locked: new Set(progress.locked ?? []),
+    // 익스텐디드 이전에 저장된(필드가 없는) 스탠다드 진행 기록과 호환.
+    maxGuesses: progress.maxGuesses ?? MAX_GUESSES,
   };
 }
 
@@ -120,7 +127,7 @@ export function toggleMark(state, edgeIdx) {
 /** @returns {{solved:boolean, correct:boolean[]}|null} 제출 불가 상태면 null */
 export function submitGuess(state) {
   if (state.status !== 'playing') return null;
-  if (state.guesses.length >= MAX_GUESSES) return null;
+  if (state.guesses.length >= state.maxGuesses) return null;
 
   const { solved, correct } = checkArrangement(state.positions, state.solution);
   state.guesses.push({ correct, positions: [...state.positions] });
@@ -131,7 +138,7 @@ export function submitGuess(state) {
   state.marked.clear();
 
   if (solved) { state.status = 'solved'; state.finishedAt = Date.now(); }
-  else if (state.guesses.length >= MAX_GUESSES) { state.status = 'failed'; state.finishedAt = Date.now(); }
+  else if (state.guesses.length >= state.maxGuesses) { state.status = 'failed'; state.finishedAt = Date.now(); }
 
   return { solved, correct };
 }
@@ -168,5 +175,5 @@ export function brokenEdges(state) {
 }
 
 export function guessesLeft(state) {
-  return MAX_GUESSES - state.guesses.length;
+  return state.maxGuesses - state.guesses.length;
 }

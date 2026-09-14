@@ -1,6 +1,6 @@
 import { dateStrKST, shiftDateStr, msUntilNextReset, formatCountdown } from './daily/dateUtil.js';
 import {
-  loadProgress, saveProgress, recordResult, summarize, DIST_BUCKETS, MAX_GUESSES,
+  loadProgress, saveProgress, recordResult, summarize, maxGuessesFor, distBucketsFor,
 } from './daily/storage.js';
 import { buildShareText, buildFreePlayShareText, buildCalendarShareText, buildGuessEmojiSequence } from './daily/share.js';
 import {
@@ -14,6 +14,9 @@ const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
 const DAILY_FIRST_DATE = '2026-09-01'; // 아카이브에서 고를 수 있는 가장 이른 날짜
 const TODAY = () => dateStrKST();
 
+// 데일리 퍼즐 파일명: 스탠다드는 <date>.json, 익스텐디드는 extended-<date>.json (generate-daily.mjs 참고)
+const dailyFileName = (date, variant) => (variant === 'extended' ? `extended-${date}` : date);
+
 // ── DOM ──
 const $ = (id) => document.getElementById(id);
 const landingScreen   = $('landing-screen');
@@ -22,10 +25,13 @@ const landingMain     = $('landing-main');
 const landingArchive  = $('landing-archive');
 const landingDate     = $('landing-date');
 const dailyCardStatus = $('daily-card-status');
+const dailyCardStatusExtended = $('daily-card-status-extended');
 const dailyLoadNote   = $('daily-load-note');
 const dailyErrorEl    = $('daily-error');
 
 const btnDailyPlay   = $('btn-daily-play');
+const btnDailyPlayExtended = $('btn-daily-play-extended');
+const btnFreeplayExtended = $('btn-freeplay-extended');
 const btnFreePlay    = $('btn-free-play');
 const btnArchive     = $('btn-archive');
 const btnLandingStats = $('btn-landing-stats');
@@ -63,6 +69,8 @@ const dailyShareNote      = $('daily-share-note');
 
 const dailyStatsModal  = $('daily-stats-modal');
 const dailyStatsClose  = $('daily-stats-close');
+const btnStatsVariantStandard = $('btn-stats-variant-standard');
+const btnStatsVariantExtended = $('btn-stats-variant-extended');
 const statPlayed    = $('stat-played');
 const statWinRate   = $('stat-winrate');
 const statStreak    = $('stat-streak');
@@ -96,12 +104,13 @@ function showGame() {
 
 // ── 데일리 퍼즐 로딩(캐시) ──
 const puzzleCache = new Map();
-async function loadDailyPuzzle(date) {
-  if (puzzleCache.has(date)) return puzzleCache.get(date);
-  const res = await fetch(`daily/${date}.json`, { cache: 'no-store' });
+async function loadDailyPuzzle(date, variant = 'standard') {
+  const cacheKey = `${variant}:${date}`;
+  if (puzzleCache.has(cacheKey)) return puzzleCache.get(cacheKey);
+  const res = await fetch(`daily/${dailyFileName(date, variant)}.json`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`${date} 퍼즐을 찾을 수 없음`);
   const data = await res.json();
-  puzzleCache.set(date, data);
+  puzzleCache.set(cacheKey, data);
   return data;
 }
 
@@ -129,13 +138,13 @@ function ensureRenderer() {
 }
 
 function persist() {
-  if (session && !session.archive) saveProgress(serializeGameState(session.state));
+  if (session && !session.archive) saveProgress(serializeGameState(session.state), session.variant);
 }
 
 function renderGuessPips() {
   guessesEl.innerHTML = '';
   const { state } = session;
-  for (let i = 0; i < MAX_GUESSES; i++) {
+  for (let i = 0; i < state.maxGuesses; i++) {
     const pip = document.createElement('span');
     pip.className = 'pyra-guess-pip';
     const g = state.guesses[i];
@@ -226,7 +235,7 @@ function afterStateChange() {
 }
 
 function openGame(newSession) {
-  session = newSession;
+  session = { variant: 'standard', ...newSession };
   resultShown = false;
   viewingAnswer = false;
   showGame();
@@ -256,7 +265,7 @@ function handleSubmitGuess() {
     resultShown = true;
     if (!session.archive) {
       const attempt = result.solved ? session.state.guesses.length : null;
-      recordResult(session.date, session.state.status, attempt);
+      recordResult(session.date, session.state.status, attempt, session.variant);
     }
     showResultModal();
   }
@@ -274,8 +283,9 @@ window.__solve = () => {
 };
 
 function showResultModal() {
-  const { state, date, archive, freePlay } = session;
+  const { state, date, archive, freePlay, variant } = session;
   const freePlayWin = freePlay && state.status === 'solved';
+  const modeSuffix = variant === 'extended' ? ' · 익스텐디드' : '';
   // 1승째는 아직 "연속"이라 부르기 애매하니 배지와 같은 기준(2연속부터)으로 문구를 바꾼다.
   const showStreak = freePlayWin && freePlayStreak >= 2;
   dailyResultTitle.textContent = showStreak
@@ -285,8 +295,8 @@ function showResultModal() {
     ? '연속 도전 기록은 저장되지 않아요 — 메인 화면으로 나가면 초기화돼요.'
     : archive
       ? `${date} · 연습 플레이 (기록에는 반영되지 않아요)`
-      : `${date} · ${state.guesses.length}번째에 ${state.status === 'solved' ? '성공' : '실패'}`;
-  dailyResultGrid.textContent = buildGuessEmojiSequence(state.guesses);
+      : `${date}${modeSuffix} · ${state.guesses.length}번째에 ${state.status === 'solved' ? '성공' : '실패'}`;
+  dailyResultGrid.textContent = buildGuessEmojiSequence(state.guesses, state.maxGuesses);
   dailyShareNote.textContent = '';
   openPanel(dailyResultModal);
 }
@@ -294,11 +304,11 @@ btnDailyResultClose.addEventListener('click', () => closePanel(dailyResultModal)
 dailyResultModal.addEventListener('click', (e) => { if (e.target === dailyResultModal) closePanel(dailyResultModal); });
 btnDailyResultStats.addEventListener('click', () => { closePanel(dailyResultModal); openStatsModal(); });
 btnDailyResultShare.addEventListener('click', async () => {
-  const { state, freePlay } = session;
+  const { state, freePlay, variant } = session;
   // 결과창 문구와 같은 기준(2연속부터) — 1승째 공유 문구에 "1연속 도전 성공!"이라고 쓰면 어색하다.
   const text = freePlay && state.status === 'solved' && freePlayStreak >= 2
-    ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, url: SITE_URL })
-    : buildShareText({ date: session.date, guesses: state.guesses, url: SITE_URL });
+    ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, url: SITE_URL, variant })
+    : buildShareText({ date: session.date, guesses: state.guesses, url: SITE_URL, variant });
   const ok = await copyText(text);
   dailyShareNote.textContent = ok ? '클립보드에 복사했어요!' : '복사에 실패했어요.';
 });
@@ -308,46 +318,71 @@ async function copyText(text) {
 }
 
 // ── 오늘의 퍼즐 시작 ──
-async function startDaily() {
+async function startDaily(variant = 'standard') {
   const date = TODAY();
   dailyLoadNote.hidden = false;
   dailyErrorEl.textContent = '';
   try {
-    const puzzle = await loadDailyPuzzle(date);
-    const saved = loadProgress(date);
+    const puzzle = await loadDailyPuzzle(date, variant);
+    const saved = loadProgress(date, variant);
+    const maxGuesses = maxGuessesFor(variant);
     const state = (saved && saved.solution?.join(',') === puzzle.tiles.join(','))
       ? reviveGameState(saved)
-      : createGameState(date, puzzle.tiles);
-    if (!saved) saveProgress(serializeGameState(state));
-    openGame({ date, archive: false, state });
+      : createGameState(date, puzzle.tiles, { maxGuesses });
+    if (!saved) saveProgress(serializeGameState(state), variant);
+    openGame({ date, archive: false, variant, state });
   } catch (err) {
-    dailyErrorEl.textContent = '오늘의 퍼즐을 불러오지 못했어요. 잠시 후 다시 시도해주세요.';
+    dailyErrorEl.textContent = '퍼즐을 불러오지 못했어요. 잠시 후 다시 시도해주세요.';
     console.error(err);
   } finally {
     dailyLoadNote.hidden = true;
   }
 }
-btnDailyPlay.addEventListener('click', startDaily);
+btnDailyPlay.addEventListener('click', () => startDaily('standard'));
+btnDailyPlayExtended.addEventListener('click', () => startDaily('extended'));
 
-function refreshLandingCard() {
-  landingDate.textContent = TODAY();
-  const s = summarize(TODAY());
+function refreshDailyCardStatus(statusEl, variant) {
+  const s = summarize(TODAY(), variant);
   const today = s.results[TODAY()];
-  if (today?.status === 'solved') { dailyCardStatus.textContent = '성공'; dailyCardStatus.dataset.status = 'solved'; }
-  else if (today?.status === 'failed') { dailyCardStatus.textContent = '실패'; dailyCardStatus.dataset.status = 'timeout'; }
+  if (today?.status === 'solved') { statusEl.textContent = '성공'; statusEl.dataset.status = 'solved'; }
+  else if (today?.status === 'failed') { statusEl.textContent = '실패'; statusEl.dataset.status = 'timeout'; }
   else {
-    const p = loadProgress(TODAY());
-    if (p && p.status === 'playing') { dailyCardStatus.textContent = '진행 중'; dailyCardStatus.dataset.status = 'playing'; }
-    else { dailyCardStatus.textContent = '플레이 전'; dailyCardStatus.dataset.status = 'new'; }
+    const p = loadProgress(TODAY(), variant);
+    if (p && p.status === 'playing') { statusEl.textContent = '진행 중'; statusEl.dataset.status = 'playing'; }
+    else { statusEl.textContent = '플레이 전'; statusEl.dataset.status = 'new'; }
   }
 }
 
+function refreshLandingCard() {
+  landingDate.textContent = TODAY();
+  refreshDailyCardStatus(dailyCardStatus, 'standard');
+  refreshDailyCardStatus(dailyCardStatusExtended, 'extended');
+}
+
 // ── 자유 연습 ── (§1.16 — v1: 서버 생성기 없이 클라이언트에서 즉석 생성)
+// 익스텐디드 토글은 랜딩 화면에만 있고 게임 화면(연속 도전 버튼)에선 안 보이므로, 한 스트릭이
+// 진행되는 동안 사용자가 실수로 모드를 바꿔치기할 일이 없다 — 매번 그 시점의 토글값을 그대로 읽어도 안전.
+const FREEPLAY_EXTENDED_KEY = 'trilateral-freeplay-extended';
+let freePlayExtended = false;
+try { freePlayExtended = localStorage.getItem(FREEPLAY_EXTENDED_KEY) === '1'; } catch { /* 무시 */ }
+
+function applyFreePlayExtendedToggle() {
+  btnFreeplayExtended.setAttribute('aria-pressed', String(freePlayExtended));
+}
+applyFreePlayExtendedToggle();
+btnFreeplayExtended.addEventListener('click', () => {
+  freePlayExtended = !freePlayExtended;
+  try { localStorage.setItem(FREEPLAY_EXTENDED_KEY, freePlayExtended ? '1' : '0'); } catch { /* 무시 */ }
+  applyFreePlayExtendedToggle();
+});
+
 async function startFreePlay() {
+  const variant = freePlayExtended ? 'extended' : 'standard';
   const { generateTree } = await import('./generator/treeGenerator.js');
-  const result = generateTree(); // 시드 없음 = 매번 다른 트리
-  const state = createGameState('free', result.tiles);
-  openGame({ date: '자유 연습', archive: true, freePlay: true, state });
+  const result = generateTree(undefined, { extended: freePlayExtended }); // 시드 없음 = 매번 다른 트리
+  const state = createGameState('free', result.tiles, { maxGuesses: maxGuessesFor(variant) });
+  const date = freePlayExtended ? '자유 연습 · 익스텐디드' : '자유 연습';
+  openGame({ date, archive: true, freePlay: true, variant, state });
 }
 btnFreePlay.addEventListener('click', () => {
   freePlayStreak = 0; // 메인 화면에서 새로 시작하는 거라 연속 기록 리셋
@@ -477,9 +512,13 @@ btnArchivePlay.addEventListener('click', async () => {
 // ── 통계 모달 ──
 const statsCal = makeCalendar({ gridEl: dailyStatsCal, titleEl: dailyCalTitle, prevEl: dailyCalPrev, nextEl: dailyCalNext });
 let statsCountdownTimer = null;
+let statsModalVariant = 'standard'; // 탭으로 스탠다드/익스텐디드 기록을 전환 — 모달 열려있는 동안만 유지
 
 function renderStatsModal(resetMonth) {
-  const s = summarize(TODAY());
+  btnStatsVariantStandard.classList.toggle('active', statsModalVariant === 'standard');
+  btnStatsVariantExtended.classList.toggle('active', statsModalVariant === 'extended');
+
+  const s = summarize(TODAY(), statsModalVariant);
   statPlayed.textContent = s.played;
   statWinRate.textContent = s.winRate;
   statStreak.textContent = s.curStreak;
@@ -488,7 +527,7 @@ function renderStatsModal(resetMonth) {
 
   dailyStatsDist.innerHTML = '';
   const max = Math.max(1, ...s.distribution);
-  DIST_BUCKETS.forEach((label, i) => {
+  distBucketsFor(maxGuessesFor(statsModalVariant)).forEach((label, i) => {
     const count = s.distribution[i];
     const row = document.createElement('div');
     row.className = 'pyra-dist-row';
@@ -499,7 +538,9 @@ function renderStatsModal(resetMonth) {
   });
 }
 
-function openStatsModal() {
+/** @param {string} [variant] 기본은 지금 진행 중인 세션의 모드(없으면 스탠다드) */
+function openStatsModal(variant = session?.variant ?? 'standard') {
+  statsModalVariant = variant;
   renderStatsModal(true);
   openPanel(dailyStatsModal);
   clearInterval(statsCountdownTimer);
@@ -510,8 +551,15 @@ function openStatsModal() {
 function closeStatsModal() { closePanel(dailyStatsModal); clearInterval(statsCountdownTimer); }
 dailyStatsClose.addEventListener('click', closeStatsModal);
 dailyStatsModal.addEventListener('click', (e) => { if (e.target === dailyStatsModal) closeStatsModal(); });
-btnLandingStats.addEventListener('click', openStatsModal);
-btnGameStats.addEventListener('click', openStatsModal);
+btnLandingStats.addEventListener('click', () => openStatsModal('standard'));
+btnGameStats.addEventListener('click', () => openStatsModal());
+[btnStatsVariantStandard, btnStatsVariantExtended].forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.variant === statsModalVariant) return;
+    statsModalVariant = btn.dataset.variant;
+    renderStatsModal(true);
+  });
+});
 
 function openHelpModal() { openPanel(gameHelpModal); }
 function closeHelpModal() { closePanel(gameHelpModal); }
@@ -521,15 +569,15 @@ btnGameHelp.addEventListener('click', openHelpModal);
 
 btnCalShare.addEventListener('click', async () => {
   const { y, m } = statsCal.monthYM();
-  const s = summarize(TODAY());
+  const s = summarize(TODAY(), statsModalVariant);
   const text = buildCalendarShareText({ results: s.results, year: y, month: m, url: SITE_URL });
   const ok = await copyText(text);
   calShareNote.textContent = ok ? '복사했어요!' : '복사 실패';
 });
 btnDailyStatsShare.addEventListener('click', async () => {
-  const p = loadProgress(TODAY());
+  const p = loadProgress(TODAY(), statsModalVariant);
   if (!p || p.status === 'playing') { dailyStatsShareNote.textContent = '오늘 퍼즐을 먼저 풀어주세요.'; return; }
-  const text = buildShareText({ date: TODAY(), guesses: p.guesses, url: SITE_URL });
+  const text = buildShareText({ date: TODAY(), guesses: p.guesses, url: SITE_URL, variant: statsModalVariant });
   const ok = await copyText(text);
   dailyStatsShareNote.textContent = ok ? '복사했어요!' : '복사 실패';
 });

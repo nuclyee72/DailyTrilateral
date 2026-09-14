@@ -35,10 +35,21 @@
             <span class="daily-card-desc">3단 · 추측 4번</span>
             <span id="daily-card-status" class="daily-card-status" data-status="new">플레이 전</span>
           </button>
+          <button id="btn-daily-play-extended" class="daily-card" type="button">
+            <span class="daily-card-name">익스텐디드</span>
+            <span class="daily-card-desc">3단 · 전체 단어 · 추측 6번</span>
+            <span id="daily-card-status-extended" class="daily-card-status" data-status="new">플레이 전</span>
+          </button>
         </div>
 
-        <p id="daily-load-note" class="landing-note" hidden>오늘의 퍼즐을 불러오는 중...</p>
+        <p id="daily-load-note" class="landing-note" hidden>퍼즐을 불러오는 중...</p>
         <p id="daily-error" class="landing-error"></p>
+
+        <button id="btn-freeplay-extended" class="landing-toggle-chip" type="button" aria-pressed="false">
+          <span class="landing-toggle-dot" aria-hidden="true"></span>
+          <span class="landing-toggle-label">익스텐디드로 자유 연습</span>
+          <span class="landing-toggle-desc">전체 단어 · 6회</span>
+        </button>
 
         <div class="landing-row">
           <button id="btn-free-play" class="landing-btn" type="button">자유 연습</button>
@@ -121,6 +132,10 @@
     <div class="modal-card daily-stats-card">
       <button id="daily-stats-close" class="floating-panel-close" type="button" aria-label="닫기">✕</button>
       <h2 class="floating-panel-title">통계</h2>
+      <div id="daily-stats-variant-tabs" class="daily-stats-tabs">
+        <button id="btn-stats-variant-standard" class="daily-stats-tab active" type="button" data-variant="standard">스탠다드</button>
+        <button id="btn-stats-variant-extended" class="daily-stats-tab" type="button" data-variant="extended">익스텐디드</button>
+      </div>
       <div class="daily-stats-numbers">
         <div class="daily-stat"><strong id="stat-played">0</strong><span>게임</span></div>
         <div class="daily-stat"><strong id="stat-winrate">0</strong><span>승률(%)</span></div>
@@ -161,8 +176,9 @@
         <p><strong>이동</strong>타일을 드래그해서 다른 타일과 자리를 바꾸세요. 확신이 서는 연결선을 누르면 주황색으로 표시되고, 표시된 타일들은 하나로 묶여 함께 움직여요.</p>
         <p><strong>묶음 규칙</strong>초록(정답)·주황(표시) 묶음끼리는 서로 겹칠 수 없어요. 아직 안 묶인 자유 타일은 알아서 자리를 비켜줘요.</p>
         <p><strong>제출</strong>준비되면 오른쪽 위 추측 제출! 맞힌 연결은 초록으로 고정되고, 틀린 연결은 다음 시도에서도 계속 표시돼서 같은 실수를 줄여줘요.</p>
-        <p><strong>도전 횟수</strong>추측은 하루 4번까지. 4번 안에 연결 14개를 모두 맞히면 성공이에요.</p>
+        <p><strong>도전 횟수</strong>추측은 정해진 횟수까지(스탠다드 4번 · 익스텐디드 6번). 그 안에 연결 14개를 모두 맞히면 성공이에요.</p>
         <p><strong>참고</strong>형제 타일끼리 좌우 순서는 상관없어요. 부모-자식 관계만 맞으면 정답으로 인정돼요.</p>
+        <p><strong>익스텐디드 모드</strong>표준국어대사전 전체 단어(고어·전문용어 포함)로 만들어져 스탠다드보다 훨씬 어려워요. 그만큼 추측 기회를 6번으로 늘렸어요.</p>
       </div>
     </div>
   </div>

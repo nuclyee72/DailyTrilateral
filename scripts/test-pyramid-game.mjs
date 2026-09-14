@@ -14,7 +14,7 @@ const { tiles: solution } = generateTree('daily:2026-09-13');
 // 정확히 그 두 링크만 깨짐 (7,8처럼 같은 부모의 형제를 바꾸면 §1.17 규칙상 여전히 정답이라 안 됨)
 const start = [...solution];
 [start[7], start[9]] = [start[9], start[7]];
-const state = createGameState('2026-09-13', solution, start);
+const state = createGameState('2026-09-13', solution, { positions: start });
 
 assert('시작 시 4번 남음', guessesLeft(state) === 4);
 
@@ -46,7 +46,7 @@ console.log('실제 이모지:', emoji);
 
 // ── 버그 리포트 재현: "그룹 이동 시 선(마킹)이 안 따라옴" + "그룹 안으로는 이동 불가" ──
 {
-  const s2 = createGameState('2026-09-14', solution, [...solution]); // 정답 그대로 시작
+  const s2 = createGameState('2026-09-14', solution, { positions: [...solution] }); // 정답 그대로 시작
   const e01 = TREE_EDGES.findIndex((e) => e.parent === 0 && e.child === 1);
   const e02 = TREE_EDGES.findIndex((e) => e.parent === 0 && e.child === 2);
   toggleMark(s2, e01);
@@ -71,7 +71,7 @@ console.log('실제 이모지:', emoji);
   assert('[버그 재현] 옛 자리(0-1, 0-2)엔 더 이상 마킹 없음', !s2.marked.has(e01) && !s2.marked.has(e02));
 
   // 2) 그룹을 완전히 다른 곳(형제 서브트리)으로 옮기면 마킹(선)도 새 자리로 따라가야 함
-  const s3 = createGameState('2026-09-15', solution, [...solution]);
+  const s3 = createGameState('2026-09-15', solution, { positions: [...solution] });
   const eA = TREE_EDGES.findIndex((e) => e.parent === 1 && e.child === 3);
   const eB = TREE_EDGES.findIndex((e) => e.parent === 1 && e.child === 4);
   toggleMark(s3, eA);
@@ -90,7 +90,7 @@ console.log('실제 이모지:', emoji);
 // 잠기면 자유롭게 스왑할 자리가 없어짐) 테스트가 꼬이므로, 여기서는 "1차 게스에서 (3,7)·
 // (4,9) 두 링크만 틀렸다"는 기록만 직접 만들고 locked는 비워둔 채(전부 자유 타일) 확인한다.
 {
-  const s4 = createGameState('2026-09-16', solution, [...solution]);
+  const s4 = createGameState('2026-09-16', solution, { positions: [...solution] });
   const wrongPositions = [...solution];
   [wrongPositions[7], wrongPositions[9]] = [wrongPositions[9], wrongPositions[7]];
   const { correct } = checkArrangement(wrongPositions, solution);
@@ -121,7 +121,7 @@ console.log('실제 이모지:', emoji);
 
 // ── §6.17 [요청]: 추측 제출 후에는 마킹(주황)이 맞았든 틀렸든 전부 풀려야 함 ──
 {
-  const s5 = createGameState('2026-09-17', solution, [...solution]);
+  const s5 = createGameState('2026-09-17', solution, { positions: [...solution] });
   [s5.positions[7], s5.positions[9]] = [s5.positions[9], s5.positions[7]]; // 두 링크만 틀리게
   const eOk = TREE_EDGES.findIndex((e) => e.parent === 0 && e.child === 1); // 맞을 링크
   const eWrong = TREE_EDGES.findIndex((e) => e.parent === 3 && e.child === 7); // 틀릴 링크
@@ -137,7 +137,7 @@ console.log('실제 이모지:', emoji);
 
 // ── §6.20 [요청]: 브로큰(빨강)으로 뜬 링크는 눌러서 마킹으로 묶을 수 없어야 함 ──
 {
-  const s6 = createGameState('2026-09-18', solution, [...solution]);
+  const s6 = createGameState('2026-09-18', solution, { positions: [...solution] });
   [s6.positions[7], s6.positions[9]] = [s6.positions[9], s6.positions[7]]; // (3,7)/(4,9) 틀리게
   submitGuess(s6);
   const eBroken = TREE_EDGES.findIndex((e) => e.parent === 3 && e.child === 7);

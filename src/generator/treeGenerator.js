@@ -73,15 +73,18 @@ function backtrack(graph, stepBudget = DEFAULT_STEP_BUDGET) {
 
 /**
  * @param {string} seed 결정적 시드(예: 'daily:2026-09-13'). 생략하면 매번 다른 결과(자유 연습용).
- * @param {{ tries?: number, stepBudget?: number }} [opts]
+ * @param {{ tries?: number, stepBudget?: number, extended?: boolean }} [opts]
+ *   extended: true면 처음부터 끝까지 전체 사전 그래프(allGraph)만 사용 — "익스텐디드 모드"용.
+ *   생략(false)이면 기존 그대로 일상 어휘 그래프를 1순위로 쓰고 모자라면 전체 사전으로 확장.
  * @returns {{ seed: string|null, tiles: string[], words: string[] } | null}
  *   tiles[i] = 인덱스 i 자리의 정답 음절. words[k] = TREE_EDGES[k]에 대응하는 실제 단어(부모+자식).
  */
-export function generateTree(seed, { tries = 30, stepBudget = DEFAULT_STEP_BUDGET } = {}) {
+export function generateTree(seed, { tries = 30, stepBudget = DEFAULT_STEP_BUDGET, extended = false } = {}) {
   for (let attempt = 0; attempt < tries; attempt++) {
     seedRng(seed === undefined ? undefined : `${seed}:${attempt}`);
     // 1순위: 일상 어휘 그래프. 다 써버리면(간혹 시드 운이 나쁘면) 전체 사전 그래프로 확장.
-    const graph = attempt < tries / 2 ? commonGraph : allGraph;
+    // (익스텐디드 모드는 애초에 전체 사전 그래프만 쓴다 — 훨씬 촘촘해서 생성 자체는 오히려 더 잘 됨.)
+    const graph = extended ? allGraph : (attempt < tries / 2 ? commonGraph : allGraph);
     const tiles = backtrack(graph, stepBudget);
     if (!tiles) continue;
 

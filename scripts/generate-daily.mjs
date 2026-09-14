@@ -1,5 +1,6 @@
 /**
  * generate-daily.mjs — 그 날의 피라미드 정답을 생성해 daily/<date>.json 으로 저장.
+ * 익스텐디드(전체 단어) 정답도 같은 실행에서 daily/extended-<date>.json 으로 함께 저장한다.
  * (DailySudoku/scripts/generate-daily.mjs와 같은 패턴 — 멱등, 며칠치 버퍼, GitHub Actions 크론이 호출)
  *
  *   node scripts/generate-daily.mjs                # KST 오늘 + 앞으로 3일 (버퍼)
@@ -20,15 +21,21 @@ import { dateStrKST, shiftDateStr } from '../src/daily/dateUtil.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DAILY_DIR = path.join(__dirname, '..', 'daily');
 
-async function generateForDate(dateStr) {
-  const outPath = path.join(DAILY_DIR, `${dateStr}.json`);
+/**
+ * @param {string} dateStr
+ * @param {{ extended?: boolean, fileName?: string, seedPrefix?: string }} [opts]
+ *   extended: allGraph만 사용(§익스텐디드 모드). fileName: 확장자 뺀 출력 파일명(기본 dateStr).
+ *   seedPrefix: 시드 접두사(기본 'daily') — 스탠다드/익스텐디드가 같은 날짜라도 다른 정답이 나오게 구분.
+ */
+async function generateForDate(dateStr, { extended = false, fileName = dateStr, seedPrefix = 'daily' } = {}) {
+  const outPath = path.join(DAILY_DIR, `${fileName}.json`);
   if (existsSync(outPath)) {
-    console.log(`· ${dateStr} 이미 있음 — 건너뜀`);
+    console.log(`· ${fileName} 이미 있음 — 건너뜀`);
     return false;
   }
 
-  const result = generateTree(`daily:${dateStr}`);
-  if (!result) throw new Error(`${dateStr}: 트리 생성 실패`);
+  const result = generateTree(`${seedPrefix}:${dateStr}`, { extended });
+  if (!result) throw new Error(`${fileName}: 트리 생성 실패`);
 
   const payload = {
     date: dateStr,
@@ -39,7 +46,7 @@ async function generateForDate(dateStr) {
 
   await mkdir(DAILY_DIR, { recursive: true });
   await writeFile(outPath, JSON.stringify(payload) + '\n', 'utf8');
-  console.log(`✓ ${dateStr} 저장 (${result.words.join(', ')})`);
+  console.log(`✓ ${fileName} 저장 (${result.words.join(', ')})`);
   return true;
 }
 
@@ -53,6 +60,7 @@ async function main() {
     const dateStr = shiftDateStr(startDate, i);
     try {
       if (await generateForDate(dateStr)) wrote++;
+      if (await generateForDate(dateStr, { extended: true, fileName: `extended-${dateStr}`, seedPrefix: 'daily-extended' })) wrote++;
     } catch (err) {
       console.error(`✗ ${dateStr} 실패:`, err.message);
       process.exitCode = 1;
