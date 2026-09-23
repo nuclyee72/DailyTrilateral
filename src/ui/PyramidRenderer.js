@@ -7,6 +7,9 @@ import { buildAdjacency, connectedComponent } from '../game/pyramidGroups.js';
 
 const PAD_X = 7;   // % — 좌우 여백 (타일이 잘리지 않도록)
 const PAD_Y = 10;  // % — 상하 여백
+// 드롭 판정 반경 = 타일 반지름 × 이 값. 1보다 살짝 크게 잡아 원 가장자리 바로 바깥에 놓아도
+// 인정되게 한다(리프끼리는 어차피 "더 가까운 쪽"으로 갈리므로 겹칠 걱정 없음).
+const DROP_RADIUS_FACTOR = 1.3;
 
 const level = (i) => Math.floor(Math.log2(i + 1));
 const MAX_LEVEL = level(TOTAL_NODES - 1);
@@ -140,6 +143,16 @@ export class PyramidRenderer {
     let basePx = null; // Map<slot, {x,y}> — 그 슬롯의 쉴 때(정지) 픽셀 위치(스테이지 기준)
     let smoothedDepth = null; // 세로 위치가 가리키는 "깊이"를 부드럽게 뒤쫓는 값(반동 효과)
     let rafId = null;
+    let dropTarget = null; // 지금 손을 떼면 놓일 슬롯 — 하이라이트(.drop-target)로 미리 보여준다
+
+    // 모바일에선 손가락이 타일을 가려서 "어디에 놓일지"가 안 보이므로, 드래그 중 매 프레임
+    // 드롭 판정(_hitTest)과 똑같은 결과를 하이라이트로 띄워둔다 — 보이는 것 = 실제 결과.
+    const setDropTarget = (next) => {
+      if (next === dropTarget) return;
+      if (dropTarget !== null) this.tileEls[dropTarget].classList.remove('drop-target');
+      if (next !== null) this.tileEls[next].classList.add('drop-target');
+      dropTarget = next;
+    };
 
     // [§6.22] 얼마나 빨리 목표 깊이를 따라잡을지 — 낮을수록 더 부드럽고(반동이 오래감),
     // 1에 가까울수록 즉각 반응. CSS 트랜지션이 아니라 매 프레임 직접 보간하는 방식이라
@@ -186,6 +199,7 @@ export class PyramidRenderer {
         clone.setAttribute('x2', LAYOUT[child].leftPct + (dc.dx / stageRect.width) * 100);
         clone.setAttribute('y2', LAYOUT[child].topPct + (dc.dy / stageRect.height) * 100);
       }
+      setDropTarget(this._hitTest(lastClientX, lastClientY, slot));
     };
 
     const tick = () => {
@@ -247,6 +261,7 @@ export class PyramidRenderer {
 
       if (dragging) {
         if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        setDropTarget(null);
         for (const s of groupSlots) {
           this.tileEls[s].classList.remove('dragging');
           this.tileEls[s].style.transform = '';
@@ -285,14 +300,26 @@ export class PyramidRenderer {
     });
   }
 
-  /** (clientX,clientY) 아래에 있는 다른 타일의 slot 번호 (없으면 null) */
+  /**
+   * (clientX,clientY)에서 가장 가까운 다른 슬롯 번호 (충분히 가까운 게 없으면 null).
+   * 모바일에서는 맨 아랫줄(리프 8개) 타일이 서로 겹칠 만큼 촘촘해서, 예전처럼 "타일 사각형
+   * 안에 들어갔나"로 판정하면 겹친 영역이 항상 인덱스가 작은(왼쪽) 타일로만 잡히고 원 바깥
+   * 모서리까지 판정에 들어갔다 — 대신 슬롯의 "쉴 때 중심"까지의 거리로 가장 가까운 걸 고른다.
+   * 드래그로 움직이는 중인 타일의 현재 위치가 아니라 고정 슬롯 위치 기준이라 결과가 안정적이다.
+   */
   _hitTest(clientX, clientY, excludeSlot) {
+    const stageRect = this.root.getBoundingClientRect();
+    const radius = this.tileEls[0].offsetWidth / 2;
+    const maxDist = radius * DROP_RADIUS_FACTOR;
+    let best = null, bestDist = Infinity;
     for (let i = 0; i < TOTAL_NODES; i++) {
       if (i === excludeSlot) continue;
-      const r = this.tileEls[i].getBoundingClientRect();
-      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return i;
+      const cx = stageRect.left + (LAYOUT[i].leftPct / 100) * stageRect.width;
+      const cy = stageRect.top + (LAYOUT[i].topPct / 100) * stageRect.height;
+      const d = Math.hypot(clientX - cx, clientY - cy);
+      if (d <= maxDist && d < bestDist) { best = i; bestDist = d; }
     }
-    return null;
+    return best;
   }
 
   /** 타일 하나에 "팝" 교체 효과를 (재생 중이었으면 처음부터 다시) 튼다 — fromSlot을 못 찾았을 때의 대체용. */

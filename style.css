@@ -2811,6 +2811,13 @@ kbd {
   box-shadow: 0 6px 16px rgba(0,0,0,0.18), inset 0 0 0 2px var(--text-input);
 }
 .pyramid-tile:disabled { cursor: default; }
+/* 드래그 중 "지금 놓으면 여기로 간다" 표시 — 모바일에서 손가락에 가려도 보이도록 테두리를
+   두껍게 + 옅은 배경. transform은 드래그/날아오기 효과가 인라인으로 쓰고 있어서 건드리지 않는다. */
+.pyramid-tile.drop-target {
+  background: var(--cell-highlighted);
+  box-shadow: 0 0 0 3px var(--text-input), inset 0 0 0 2px var(--text-input);
+  z-index: 2; /* 겹친 이웃 타일 위로 테두리가 보이게 */
+}
 
 /* §6.21 — 예전엔 드래그 중 "딸려오는" 그룹 멤버가 깊이(레벨) 경계를 넘을 때마다 값이 이산적
    으로 툭 바뀌어서 그 순간에만 짧게 트랜지션을 걸었었다(.pyramid-tile--snap/-link--snap).
