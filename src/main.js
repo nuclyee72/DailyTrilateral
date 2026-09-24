@@ -374,8 +374,10 @@ let freePlayVariant = 'standard';
 
 function openFreePlayModeModal() { openPanel(freeplayModeModal); }
 function closeFreePlayModeModal() { closePanel(freeplayModeModal); }
-btnFreeplayModeCancel.addEventListener('click', closeFreePlayModeModal);
-freeplayModeModal.addEventListener('click', (e) => { if (e.target === freeplayModeModal) closeFreePlayModeModal(); });
+// 모드 고르기를 취소하면 랜딩으로 — 허브에서 들어왔으면 메인 화면 = 허브
+function cancelFreePlayModeModal() { if (!leaveToHub()) closeFreePlayModeModal(); }
+btnFreeplayModeCancel.addEventListener('click', cancelFreePlayModeModal);
+freeplayModeModal.addEventListener('click', (e) => { if (e.target === freeplayModeModal) cancelFreePlayModeModal(); });
 [btnFreeplayStandard, btnFreeplayExtended].forEach((btn) => {
   btn.addEventListener('click', () => {
     closeFreePlayModeModal();
