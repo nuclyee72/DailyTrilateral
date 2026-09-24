@@ -24,6 +24,7 @@ const landingScreen   = $('landing-screen');
 const gameScreen      = $('game-screen');
 const landingMain     = $('landing-main');
 const landingArchive  = $('landing-archive');
+const landingCard     = document.querySelector('.landing-card');
 const landingDate     = $('landing-date');
 const dailyCardStatus = $('daily-card-status');
 const dailyCardStatusExtended = $('daily-card-status-extended');
@@ -101,6 +102,7 @@ function showLanding() {
   landingScreen.classList.remove('hidden');
   landingMain.hidden = false;
   landingArchive.hidden = true;
+  landingCard.classList.remove('landing-card--archive');
   refreshLandingCard();
 }
 function showGame() {
@@ -457,6 +459,11 @@ function makeCalendar({ gridEl, titleEl, prevEl, nextEl, pick = false, onPick = 
 
       if (r) {
         cell.classList.add('cal-cell--filled', r.status === 'solved' ? 'cal-cell--solved' : 'cal-cell--fail');
+        // 스도쿠 달력처럼 칸에 기록 표시 — 성공: 맞힌 시도 번호, 실패: ✕
+        const v = document.createElement('span');
+        v.className = 'cal-val';
+        v.textContent = r.status === 'solved' && r.attempt ? `${r.attempt}번` : r.status === 'solved' ? '✓' : '✕';
+        cell.appendChild(v);
       } else if (dateStr > today) {
         cell.classList.add('cal-cell--future');
       } else {
@@ -503,6 +510,7 @@ function paintArchiveCal(resetMonth) {
 btnArchive.addEventListener('click', () => {
   landingMain.hidden = true;
   landingArchive.hidden = false;
+  landingCard.classList.add('landing-card--archive');
   archiveSelected = null;
   archiveVariant = 'standard';
   btnArchivePlay.disabled = true;
@@ -513,17 +521,16 @@ archiveBack.addEventListener('click', () => {
   if (leaveToHub()) return; // 허브에서 들어왔으면 메인 화면 = 허브
   landingArchive.hidden = true;
   landingMain.hidden = false;
+  landingCard.classList.remove('landing-card--archive');
 });
 
 archiveTypeBtns.forEach((b) => {
   b.addEventListener('click', () => {
     if (b.dataset.variant === archiveVariant) return;
     archiveVariant = b.dataset.variant;
-    archiveSelected = null;
-    btnArchivePlay.disabled = true;
     archiveErrorEl.textContent = '';
     archiveTypeBtns.forEach((x) => x.classList.toggle('active', x === b));
-    paintArchiveCal(false); // 달은 유지하고 그 달의 결과 색만 다시 칠함
+    paintArchiveCal(false); // 달·고른 날짜는 유지하고 그 모드의 결과 색만 다시 칠함
   });
 });
 
