@@ -9,6 +9,7 @@ import {
 } from './game/pyramidGame.js';
 import { PyramidRenderer } from './ui/PyramidRenderer.js';
 import { TREE_EDGES } from './generator/treeGenerator.js';
+import { initHub, leaveToHub } from './hub.js';
 
 const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
 const DAILY_FIRST_DATE = '2026-09-01'; // 아카이브에서 고를 수 있는 가장 이른 날짜
@@ -395,7 +396,7 @@ btnFreePlay.addEventListener('click', openFreePlayModeModal);
 btnContinueStreak.addEventListener('click', startFreePlay); // 스트릭은 유지한 채(모드도 그대로) 바로 다음 판으로
 
 // ── 뒤로가기 ──
-btnGoLanding.addEventListener('click', showLanding);
+btnGoLanding.addEventListener('click', () => leaveToHub() || showLanding()); // 허브에서 들어왔으면 메인 화면 = 허브
 
 // ── 지난 퍼즐(아카이브) ──
 function makeCalendar({ gridEl, titleEl, prevEl, nextEl, pick = false, onPick = null }) {
@@ -508,7 +509,11 @@ btnArchive.addEventListener('click', () => {
   archiveTypeBtns.forEach((b) => b.classList.toggle('active', b.dataset.variant === archiveVariant));
   paintArchiveCal(true);
 });
-archiveBack.addEventListener('click', () => { landingArchive.hidden = true; landingMain.hidden = false; });
+archiveBack.addEventListener('click', () => {
+  if (leaveToHub()) return; // 허브에서 들어왔으면 메인 화면 = 허브
+  landingArchive.hidden = true;
+  landingMain.hidden = false;
+});
 
 archiveTypeBtns.forEach((b) => {
   b.addEventListener('click', () => {
@@ -620,3 +625,4 @@ btnLandingDark.addEventListener('click', toggleDarkMode);
 
 // ── 시작 ──
 showLanding();
+initHub('trilateral');
