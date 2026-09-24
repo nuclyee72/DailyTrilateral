@@ -9,7 +9,7 @@ import {
 } from './game/pyramidGame.js';
 import { PyramidRenderer } from './ui/PyramidRenderer.js';
 import { TREE_EDGES } from './generator/treeGenerator.js';
-import { initHub, leaveToHub } from './hub.js';
+import { initHub, leaveToHub, saveDarkMode } from './hub.js';
 
 const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
 const DAILY_FIRST_DATE = '2026-09-01'; // 아카이브에서 고를 수 있는 가장 이른 날짜
@@ -467,6 +467,8 @@ function makeCalendar({ gridEl, titleEl, prevEl, nextEl, pick = false, onPick = 
         cell.appendChild(v);
       } else if (dateStr > today) {
         cell.classList.add('cal-cell--future');
+      } else if (minDate && dateStr < minDate) {
+        cell.classList.add('cal-cell--locked');
       } else {
         cell.classList.add('cal-cell--miss');
       }
@@ -618,7 +620,7 @@ btnDailyStatsShare.addEventListener('click', async () => {
 const DARK_MODE_KEY = 'trilateral-dark-mode';
 function applyDarkMode(on) {
   document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
-  try { localStorage.setItem(DARK_MODE_KEY, on ? '1' : '0'); } catch { /* 무시 */ }
+  saveDarkMode(on); // 허브·다른 게임과 같이 (DARK_MODE_KEY 포함)
 }
 function toggleDarkMode() {
   applyDarkMode(document.documentElement.getAttribute('data-theme') !== 'dark');
