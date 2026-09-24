@@ -639,4 +639,12 @@ function playArchiveFromHub(date, mode) {
 
 // ── 시작 ──
 showLanding();
-initHub('trilateral', { playArchive: playArchiveFromHub });
+// ── 허브의 자유 연습 모드 고르기에서 바로 시작 (?free=standard|extended) ──
+function playFreeFromHub(mode) {
+  if (!['standard', 'extended'].includes(mode)) return;
+  freePlayVariant = mode;
+  freePlayStreak = 0;
+  startFreePlay();
+}
+
+initHub('trilateral', { playArchive: playArchiveFromHub, playFree: playFreeFromHub });
