@@ -51,7 +51,6 @@ const gameHelpClose = $('game-help-close');
 const pyramidRoot  = $('pyramid-root');
 const guessesEl    = $('pyra-guesses');
 
-const archiveBack     = $('archive-back');
 const archiveCalEl    = $('archive-cal');
 const archiveCalTitle = $('archive-cal-title');
 const archiveCalPrev  = $('archive-cal-prev');
@@ -517,12 +516,6 @@ btnArchive.addEventListener('click', () => {
   archiveTypeBtns.forEach((b) => b.classList.toggle('active', b.dataset.variant === archiveVariant));
   paintArchiveCal(true);
 });
-archiveBack.addEventListener('click', () => {
-  if (leaveToHub()) return; // 허브에서 들어왔으면 메인 화면 = 허브
-  landingArchive.hidden = true;
-  landingMain.hidden = false;
-  landingCard.classList.remove('landing-card--archive');
-});
 
 archiveTypeBtns.forEach((b) => {
   b.addEventListener('click', () => {
@@ -630,6 +623,18 @@ function toggleDarkMode() {
 }
 btnLandingDark.addEventListener('click', toggleDarkMode);
 
+// ── 허브의 지난 퍼즐 달력에서 고른 날짜로 바로 시작 (?archive=YYYY-MM-DD&mode=standard|extended) ──
+function playArchiveFromHub(date, mode) {
+  btnArchive.click();
+  if (!['standard', 'extended'].includes(mode) || date < DAILY_FIRST_DATE || date >= TODAY()) return;
+  archiveVariant = mode;
+  archiveSelected = date;
+  archiveTypeBtns.forEach((b) => b.classList.toggle('active', b.dataset.variant === mode));
+  paintArchiveCal(true);
+  btnArchivePlay.disabled = false;
+  btnArchivePlay.click();
+}
+
 // ── 시작 ──
 showLanding();
-initHub('trilateral');
+initHub('trilateral', { playArchive: playArchiveFromHub });
