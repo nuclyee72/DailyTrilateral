@@ -59,10 +59,9 @@ const archiveErrorEl  = $('archive-error');
 const btnArchivePlay  = $('btn-archive-play');
 const archiveTypeBtns = document.querySelectorAll('#landing-archive .archive-type');
 
-const freeplayModeModal = $('freeplay-mode-modal');
+const landingFree = $('landing-free');
 const btnFreeplayStandard = $('btn-freeplay-standard');
 const btnFreeplayExtended = $('btn-freeplay-extended');
-const btnFreeplayModeCancel = $('btn-freeplay-mode-cancel');
 
 const dailyResultModal  = $('daily-result-modal');
 const dailyResultTitle  = $('daily-result-title');
@@ -101,6 +100,7 @@ function showLanding() {
   landingScreen.classList.remove('hidden');
   landingMain.hidden = false;
   landingArchive.hidden = true;
+  landingFree.hidden = true;
   landingCard.classList.remove('landing-card--archive');
   refreshLandingCard();
 }
@@ -367,20 +367,17 @@ function refreshLandingCard() {
 }
 
 // ── 자유 연습 ── (§1.16 — v1: 서버 생성기 없이 클라이언트에서 즉석 생성)
-// 모드(스탠다드/익스텐디드)는 "자유 연습" 진입 시점에 팝업으로 고른다. 팝업은 랜딩에서만 뜨고
+// 모드(스탠다드/익스텐디드)는 "자유 연습" 진입 시점에 랜딩 카드 안(#landing-free)에서 고른다.
 // 게임 화면(연속 도전 버튼)에선 다시 안 물어보므로, 한 스트릭이 진행되는 동안 모드가 바뀔 일은
 // 없다 — startFreePlay()는 매번 마지막으로 고른 freePlayVariant를 그대로 읽어도 안전.
 let freePlayVariant = 'standard';
 
-function openFreePlayModeModal() { openPanel(freeplayModeModal); }
-function closeFreePlayModeModal() { closePanel(freeplayModeModal); }
-// 모드 고르기를 취소하면 랜딩으로 — 허브에서 들어왔으면 메인 화면 = 허브
-function cancelFreePlayModeModal() { if (!leaveToHub()) closeFreePlayModeModal(); }
-btnFreeplayModeCancel.addEventListener('click', cancelFreePlayModeModal);
-freeplayModeModal.addEventListener('click', (e) => { if (e.target === freeplayModeModal) cancelFreePlayModeModal(); });
+function showFreeView() {
+  landingMain.hidden = true;
+  landingFree.hidden = false;
+}
 [btnFreeplayStandard, btnFreeplayExtended].forEach((btn) => {
   btn.addEventListener('click', () => {
-    closeFreePlayModeModal();
     freePlayVariant = btn.dataset.variant;
     freePlayStreak = 0; // 메인 화면에서 새로 고른 거라 연속 기록 리셋
     startFreePlay();
@@ -395,7 +392,7 @@ async function startFreePlay() {
   const date = extended ? '자유 연습 · 익스텐디드' : '자유 연습';
   openGame({ date, archive: true, freePlay: true, variant: freePlayVariant, state });
 }
-btnFreePlay.addEventListener('click', openFreePlayModeModal);
+btnFreePlay.addEventListener('click', showFreeView);
 btnContinueStreak.addEventListener('click', startFreePlay); // 스트릭은 유지한 채(모드도 그대로) 바로 다음 판으로
 
 // ── 뒤로가기 ──

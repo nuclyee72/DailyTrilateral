@@ -2179,9 +2179,15 @@ kbd {
 }
 .archive-type.active { background: var(--text-input); color: #fff; }
 
-/* 자유 연습 모드 선택 모달 — 랜딩의 데일리 카드(.daily-card)를 그대로 재사용해 "골라서 바로
-   시작"이라는 같은 상호작용을 모달 안에서도 일관되게 준다. */
-#freeplay-mode-modal .daily-cards { margin-bottom: 18px; }
+/* 자유 연습 모드 고르기 (랜딩 카드 안) — 데일리 카드(.daily-card)를 그대로 재사용해
+   "골라서 바로 시작"이라는 같은 상호작용을 준다. 제목은 허브 카드의 .sub-title과 같다. */
+.landing-sub-title {
+  margin: 0;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-given);
+}
 .landing-toggle-chip[aria-pressed="true"] {
   border-color: transparent;
   background: var(--cell-selected);
