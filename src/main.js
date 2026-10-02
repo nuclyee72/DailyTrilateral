@@ -11,7 +11,6 @@ import { PyramidRenderer } from './ui/PyramidRenderer.js';
 import { TREE_EDGES } from './generator/treeGenerator.js';
 import { initHub, leaveToHub, saveDarkMode } from './hub.js';
 
-const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
 const DAILY_FIRST_DATE = '2026-09-01'; // 아카이브에서 고를 수 있는 가장 이른 날짜
 const TODAY = () => dateStrKST();
 
@@ -314,8 +313,8 @@ btnDailyResultShare.addEventListener('click', async () => {
   const { state, freePlay, variant } = session;
   // 결과창 문구와 같은 기준(2연속부터) — 1승째 공유 문구에 "1연속 도전 성공!"이라고 쓰면 어색하다.
   const text = freePlay && state.status === 'solved' && freePlayStreak >= 2
-    ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, url: SITE_URL, variant })
-    : buildShareText({ date: session.date, guesses: state.guesses, url: SITE_URL, variant });
+    ? buildFreePlayShareText({ streak: freePlayStreak, guesses: state.guesses, variant })
+    : buildShareText({ date: freePlay ? '자유 연습' : session.date, guesses: state.guesses, variant });
   const ok = await copyText(text);
   dailyShareNote.textContent = ok ? '클립보드에 복사했어요!' : '복사에 실패했어요.';
 });
@@ -601,14 +600,14 @@ btnGameHelp.addEventListener('click', openHelpModal);
 btnCalShare.addEventListener('click', async () => {
   const { y, m } = statsCal.monthYM();
   const s = summarize(TODAY(), statsModalVariant);
-  const text = buildCalendarShareText({ results: s.results, year: y, month: m, url: SITE_URL });
+  const text = buildCalendarShareText({ results: s.results, year: y, month: m, variant: statsModalVariant });
   const ok = await copyText(text);
   calShareNote.textContent = ok ? '복사했어요!' : '복사 실패';
 });
 btnDailyStatsShare.addEventListener('click', async () => {
   const p = loadProgress(TODAY(), statsModalVariant);
   if (!p || p.status === 'playing') { dailyStatsShareNote.textContent = '오늘 퍼즐을 먼저 풀어주세요.'; return; }
-  const text = buildShareText({ date: TODAY(), guesses: p.guesses, url: SITE_URL, variant: statsModalVariant });
+  const text = buildShareText({ date: TODAY(), guesses: p.guesses, variant: statsModalVariant });
   const ok = await copyText(text);
   dailyStatsShareNote.textContent = ok ? '복사했어요!' : '복사 실패';
 });

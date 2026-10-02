@@ -7,8 +7,6 @@ import { dateStrKST } from './daily/dateUtil.js';
 import { summarize, loadProgress, distBucketsFor, maxGuessesFor } from './daily/storage.js';
 import { buildCalendarShareText, buildShareText } from './daily/share.js';
 
-const SITE_URL = 'https://nuclyee72.github.io/DailyTrilateral/';
-
 /** 숫자 4개 + 분포 막대 */
 export function stats(mode) {
   const s = summarize(dateStrKST(), mode);
@@ -23,7 +21,7 @@ export function stats(mode) {
 /** 📋 달력 공유 문구 */
 export function calendarShareText(mode, year, month) {
   const { results } = summarize(dateStrKST(), mode);
-  return buildCalendarShareText({ results, year, month, url: SITE_URL });
+  return buildCalendarShareText({ results, year, month, variant: mode });
 }
 
 /** 오늘 결과 공유 문구 — 오늘 그 모드를 아직 안 끝냈으면 null */
@@ -31,5 +29,5 @@ export async function todayShareText(mode) {
   const today = dateStrKST();
   const p = loadProgress(today, mode);
   if (!p || p.status === 'playing') return null;
-  return buildShareText({ date: today, guesses: p.guesses, url: SITE_URL, variant: mode });
+  return buildShareText({ date: today, guesses: p.guesses, variant: mode });
 }

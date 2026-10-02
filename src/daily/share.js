@@ -22,22 +22,38 @@ export function buildGuessEmojiSequence(guesses, maxGuesses = MAX_GUESSES) {
   return cells.join('');
 }
 
-const modeLabel = (variant) => (variant === 'extended' ? ' · 익스텐디드' : '');
+/*
+ * 공유 텍스트 형식 (ProjectDaily 네 게임 공통 — 제목 · 결과 줄 · 그림 · 허브 링크):
+ *   데일리 삼각관계 · 스탠다드 · 2026-10-02
+ *   ✅ 3/4                       (몇 번째 시도에 맞혔나 / 못 맞혔으면 ❌ X/4)
+ *   (빈 줄)
+ *   🟥🟥🟩⬜
+ *   (빈 줄)
+ *   <허브 링크>
+ */
+export const GAME_TITLE = '데일리 삼각관계';
+/** 공유 링크 — 허브의 이 게임 카드 (네 게임 공통) */
+export const SHARE_URL = 'https://nuclyee72.github.io/ProjectDaily/#trilateral';
+const MODE_LABEL = { standard: '스탠다드', extended: '익스텐디드' };
+const modeLabel = (variant) => MODE_LABEL[variant] ?? MODE_LABEL.standard;
+const maxFor = (variant, maxGuesses) => maxGuesses ?? (variant === 'extended' ? EXTENDED_MAX_GUESSES : MAX_GUESSES);
 
-/** 데일리 결과 공유용 전체 텍스트 */
-export function buildShareText({ date, guesses, url, variant = 'standard', maxGuesses }) {
-  const seq = buildGuessEmojiSequence(guesses, maxGuesses ?? (variant === 'extended' ? EXTENDED_MAX_GUESSES : MAX_GUESSES));
-  const parts = [`데일리 삼각관계${modeLabel(variant)} · ${date}`, seq, ''];
-  if (url) parts.push(url);
-  return parts.join('\n');
+/** 결과 줄 — '✅ 3/4' (3번째 시도에 성공) · '❌ X/4' (실패) */
+function summaryLine(guesses, max) {
+  const at = guesses.findIndex((g) => g.correct.every(Boolean));
+  return at >= 0 ? `✅ ${at + 1}/${max}` : `❌ X/${max}`;
 }
 
-/** 자유 연습 연속 도전 성공 공유용 전체 텍스트 — 이번 판의 결과보다 "몇 연속째인지"가 핵심. */
-export function buildFreePlayShareText({ streak, guesses, url, variant = 'standard', maxGuesses }) {
-  const seq = buildGuessEmojiSequence(guesses, maxGuesses ?? (variant === 'extended' ? EXTENDED_MAX_GUESSES : MAX_GUESSES));
-  const parts = [`데일리 삼각관계${modeLabel(variant)} · 자유 연습 ${streak}연속 도전 성공!`, seq, ''];
-  if (url) parts.push(url);
-  return parts.join('\n');
+/** 결과 공유용 전체 텍스트. date = 날짜 (자유 연습이면 '자유 연습') */
+export function buildShareText({ date, guesses, variant = 'standard', maxGuesses }) {
+  const max = maxFor(variant, maxGuesses);
+  return [[GAME_TITLE, modeLabel(variant), date].join(' · '), summaryLine(guesses, max), '', buildGuessEmojiSequence(guesses, max), '', SHARE_URL].join('\n');
+}
+
+/** 자유 연습 연속 도전 성공 공유용 — 결과 줄에 몇 연속째인지 붙인다 */
+export function buildFreePlayShareText({ streak, guesses, variant = 'standard', maxGuesses }) {
+  const max = maxFor(variant, maxGuesses);
+  return [[GAME_TITLE, modeLabel(variant), '자유 연습'].join(' · '), `${summaryLine(guesses, max)} · 🔥 ${streak}연속 도전 성공`, '', buildGuessEmojiSequence(guesses, max), '', SHARE_URL].join('\n');
 }
 
 const CAL_EMOJI = { solved: '🟩', fail: '🟥', miss: '⬜', pad: '⬛' };
@@ -46,7 +62,7 @@ const CAL_EMOJI = { solved: '🟩', fail: '🟥', miss: '⬜', pad: '⬛' };
  * 통계 달력을 이모지 텍스트로. results = { 'YYYY-MM-DD': { status, ... } }
  * 성공 🟩 · 실패 🟥 · 안 함 ⬜ · 달 밖(주 정렬용) ⬛ — §1.9와 동일한 3색 체계.
  */
-export function buildCalendarShareText({ results, year, month, url }) {
+export function buildCalendarShareText({ results, year, month, variant = 'standard' }) {
   const firstDow    = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const cells = [];
@@ -63,8 +79,6 @@ export function buildCalendarShareText({ results, year, month, url }) {
   const rows = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7).join(''));
 
-  const head = `데일리 삼각관계 · ${year}-${String(month).padStart(2, '0')}`;
-  const parts = [head, `✅ ${wins}  ❌ ${fails}`, '', ...rows, ''];
-  if (url) parts.push(url);
-  return parts.join('\n');
+  const head = [GAME_TITLE, modeLabel(variant), `${year}-${String(month).padStart(2, '0')}`].join(' · ');
+  return [head, `✅ ${wins}  ❌ ${fails}`, '', ...rows, '', SHARE_URL].join('\n');
 }
